@@ -23,7 +23,7 @@ class SergeantMajorScorer:
 
     def __init__(self, name: str = None, get_payoff: Callable[[SergeantMajorPlayer, 'SergeantMajorGame'], int or float] = None):
         self.name = name if name is not None else "SergeantMajorScorer"
-        self.get_payoff = get_payoff if get_payoff else get_payoff_sergeant_major_v1
+        self.get_payoff = get_payoff if get_payoff else get_payoff_sergeant_major
 
     def get_payoffs(self, game: 'SergeantMajorGame'):
         payoffs = [0, 0]
