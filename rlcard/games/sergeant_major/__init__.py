@@ -1,0 +1,1 @@
+from rlcard.games.sergeant_major.game import SergeantMajorGame as Game
