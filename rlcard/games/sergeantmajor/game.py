@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Any, Tuple
 import numpy as np
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
 from rlcard.games.sergeantmajor.types import PlayerState
@@ -17,7 +17,9 @@ class SergeantMajorGame:
         Args:
             allow_step_back: Whether to allow stepping back in the game history
         """
-        pass
+        self.allow_step_back = allow_step_back
+        self.np_random = np.random.default_rng()
+        self.num_players = 3
     
     def init_game(self) -> PlayerState:
         """
@@ -26,7 +28,7 @@ class SergeantMajorGame:
         Returns:
             Initial state observation for the first player
         """
-        pass
+        self.round = SergeantMajorRound(self.np_random, self.num_players)
     
     def step(self, action: Any) -> Tuple[PlayerState, int]:
         """
@@ -38,7 +40,10 @@ class SergeantMajorGame:
         Returns:
             Tuple of (state observation for next player, next player id)
         """
-        pass
+        self.round.proceed_round(action)
+        player_id = self.round.current_player_id
+        player_state = self.round.get_state(player_id)
+        return (player_state, player_id)
     
     def get_state(self, player_id: int) -> PlayerState:
         """
@@ -50,7 +55,7 @@ class SergeantMajorGame:
         Returns:
             Dictionary containing the player's observation
         """
-        pass
+        return self.round.get_state(player_id)
     
     def get_num_players(self) -> int:
         """
@@ -59,7 +64,7 @@ class SergeantMajorGame:
         Returns:
             Number of players (always 3 for Sergeant Major)
         """
-        pass
+        return self.num_players
     
     def get_num_actions(self) -> int:
         """
@@ -68,7 +73,7 @@ class SergeantMajorGame:
         Returns:
             Total number of possible actions (52 for a standard deck)
         """
-        pass
+        return 52
     
     def get_player_id(self) -> int:
         """
@@ -77,7 +82,7 @@ class SergeantMajorGame:
         Returns:
             ID of the player whose turn it is
         """
-        pass
+        return self.round.current_player_id
     
     def is_over(self) -> bool:
         """
@@ -86,4 +91,5 @@ class SergeantMajorGame:
         Returns:
             True if the game has ended, False otherwise
         """
-        pass
+        return len(self.round.tricks) == 16
+    

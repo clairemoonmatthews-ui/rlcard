@@ -9,3 +9,10 @@ class SergeantMajorCard(Card):
             for suit in SergeantMajorCard.suits[:4] 
             for rank in SergeantMajorCard.ranks
         ]
+
+    @classmethod
+    def from_index(int index) -> Card:
+        pass
+
+    def get_index(self) -> int:
+        pass

@@ -18,4 +18,4 @@ class SergeantMajorJudger:
         Returns:
             List of payoffs (one per player), typically the number of tricks won
         """
-        pass
+        return game.round.won_trick_counts
