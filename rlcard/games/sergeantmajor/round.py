@@ -25,6 +25,7 @@ class SergeantMajorRound:
         self.current_player_id: PlayerId = 0
         self.won_trick_counts = [0]*num_players
         self.tricks: Tricks = []
+        self.winners: List[PlayerId ]= []
         self.current_trick: Trick = []
         self.num_players = num_players
         self._deal_cards() # Adds self.hands, self.trump_suit
@@ -58,7 +59,8 @@ class SergeantMajorRound:
         self.hands[self.current_player_id].remove(action)
         if self._is_current_trick_complete():
             self.tricks.append(self.current_trick)
-            winner = self._determine_trick_winner()
+            winner = self._determine_trick_winner(self.current_trick)
+            self.winners.append(winner)
             self.won_trick_counts[winner] += 1
             self.current_trick = []
             self.current_player_id = winner
@@ -68,7 +70,7 @@ class SergeantMajorRound:
     def _is_current_trick_complete(self) -> bool:
         return len(self.current_trick) == self.num_players
     
-    def _determine_trick_winner(self) -> int:
+    def _determine_trick_winner(self, trick) -> int:
         """
         Determine which player won the current trick.
         The winner is the player who played the highest card of the lead suit
@@ -77,10 +79,10 @@ class SergeantMajorRound:
         Returns:
             Player ID of the trick winner
         """
-        winner = self.current_trick[0][0]
-        suit_led = self.current_trick[0][1].suit
-        best_rank = self._card_rank(self.current_trick[0][1], suit_led)
-        for player, card in self.current_trick[1:]:
+        winner = trick[0][0]
+        suit_led = trick[0][1].suit
+        best_rank = self._card_rank(trick[0][1], suit_led)
+        for player, card in trick[1:]:
             rank = self._card_rank(card, suit_led)
             if rank > best_rank:
                 best_rank = rank
@@ -141,5 +143,6 @@ class SergeantMajorRound:
                 - legal_actions: Cards this player can legally play
                 - current_player: ID of player whose turn it is
         """
-        return PlayerState(current_player=player_id, hand=self.hands[player_id], current_trick=self.current_trick, tricks=self.tricks, tricks_won=self.won_trick_counts[player_id], legal_actions=self.get_legal_actions(player_id))
+        return PlayerState(current_player=player_id, hand=self.hands[player_id], current_trick=self.current_trick, tricks=self.tricks, tricks_won=self.won_trick_counts[player_id], legal_actions=self.get_legal_actions(player_id), trump_suit=self.trump_suit, winners=self.winners)
+        
         

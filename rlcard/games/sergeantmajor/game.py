@@ -1,7 +1,7 @@
 from typing import Any, Tuple
 import numpy as np
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
-from rlcard.games.sergeantmajor.types import PlayerState
+from rlcard.games.sergeantmajor.types import PlayerId, PlayerState
 
 
 class SergeantMajorGame:
@@ -21,7 +21,7 @@ class SergeantMajorGame:
         self.np_random = np.random.default_rng()
         self.num_players = 3
     
-    def init_game(self) -> PlayerState:
+    def init_game(self) -> Tuple[PlayerState, PlayerId]:
         """
         Initialize a new game by creating a round and dealing cards.
         
@@ -29,6 +29,7 @@ class SergeantMajorGame:
             Initial state observation for the first player
         """
         self.round = SergeantMajorRound(self.np_random, self.num_players)
+        return (self.get_state(self.get_player_id()), self.get_player_id())
     
     def step(self, action: Any) -> Tuple[PlayerState, int]:
         """
