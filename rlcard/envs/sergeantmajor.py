@@ -2,6 +2,8 @@ from typing import Dict, List, Any
 import numpy as np
 from rlcard.envs import Env
 from rlcard.games.sergeantmajor import SergeantMajorGame
+from rlcard.games.sergeantmajor.card import SergeantMajorCard
+from rlcard.games.sergeantmajor.judger import SergeantMajorJudger
 
 
 class SergeantMajorEnv(Env):
@@ -17,9 +19,10 @@ class SergeantMajorEnv(Env):
         Args:
             config: Configuration dictionary containing environment settings
         """
-        pass
+        self.game = SergeantMajorGame()
+        super().__init__(config)
     
-    def _extract_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_state(self, state: PlayerState) -> Dict[str, Any]:
         """
         Extract and encode the state for the agent.
         Converts the raw game state into the format expected by agents.
@@ -43,7 +46,7 @@ class SergeantMajorEnv(Env):
         Returns:
             Game-specific action (typically a Card object)
         """
-        pass
+        return SergeantMajorCard.from_index(action_id)
     
     def _get_legal_actions(self) -> List[int]:
         """
@@ -52,7 +55,9 @@ class SergeantMajorEnv(Env):
         Returns:
             List of integer action IDs that are currently legal
         """
-        pass
+        legal_actions_cards = self.game.round.get_legal_actions(self.game.get_player_id())
+        legal_actions_int = [c.get_index() for c in legal_actions_cards]
+        return legal_actions_int
     
     def get_payoffs(self) -> List[float]:
         """
@@ -61,7 +66,7 @@ class SergeantMajorEnv(Env):
         Returns:
             List of payoffs (one per player)
         """
-        pass
+        return SergeantMajorJudger.judge_game(self.game)
     
     def _load_model(self) -> None:
         """
