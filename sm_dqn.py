@@ -95,7 +95,7 @@ class CompactJSONEncoder(json.JSONEncoder):
             return f"[\n{joined}\n{outer_indent}]"
 
 def make_env(args) -> "Env":
-    env = rlcard.make('sergeant-major', {"sergeant-major.pad_state": True})
+    env = rlcard.make('sergeant-major', {"sergeant-major.pad_state": args.pad_state})
     return env
 
 def set_agents(env: "Env", agent, args) -> None:
@@ -114,8 +114,8 @@ def train(env, agent, args):
         return payoff
 
     num_episodes = args.num_episodes or 10000
-    eval_episodes = 100
-    eval_every = 1000
+    eval_episodes = args.eval_episodes or 100
+    eval_every = args.aval_every or 1000
     eval_payoffs = []
     for episode in range(num_episodes):
         trajectories, payoffs = env.run(is_training=True)
@@ -128,11 +128,17 @@ def train(env, agent, args):
     print(f"\n\npayoffs: {eval_payoffs}")
 
 def parse_args():
+    def str2bool(v):
+        return v.lower() in {'true', 't', '1', 'yes', 'y'}
+
     parser = ArgumentParser()
     parser.add_argument('--input', type=str)
     parser.add_argument('--agent', type=str, default="DQNAgent")
     parser.add_argument('--num-episodes', type=int)
+    parser.add_argument('--eval_every', type=int, default=1000)
+    parser.add_argument('--eval-episodes', type=int, default=100)
     parser.add_argument('--output', type=str)
+    parser.add_argument('--pad-state', type=str2bool, default=True)
     return parser.parse_args()
 
 def make_agent(env, args):
