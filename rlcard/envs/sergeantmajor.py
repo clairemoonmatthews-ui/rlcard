@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Dict, List, Any
 import numpy as np
 from rlcard.envs import Env
@@ -14,6 +15,8 @@ class SergeantMajorEnv(Env):
     Provides the standardized environment interface for agents to interact with the game.
     """
     
+    max_state_length = 163
+
     def __init__(self, config: Dict[str, Any]) -> None:
         """
         Initialize a Sergeant Major environment.
@@ -24,8 +27,9 @@ class SergeantMajorEnv(Env):
         self.game = SergeantMajorGame()
         self.name = "sergeant-major"
         super().__init__(config)
-        self.state_shape = [[163]] # maximum length
+        self.state_shape = [[self.max_state_length]] # maximum length
         self.action_shape = [None]
+        self.pad_state = config.get("sergeant-major.pad_state", False)
     
     def _extract_state(self, state: PlayerState) -> Dict[str, Any]:
         """
@@ -40,22 +44,6 @@ class SergeantMajorEnv(Env):
         """
         # 0-51 card, 52-54 player, 55-58 trump, 59 start_trick, 60 winner, 61 hand, 62 end
         # e.g. hand, player1, card_6s, ...x16..., trump_spades, start_trick, player1, card_6s, player2, card_kh, player3, card_7s, winner, player3, ...x16... end
-        obs = []
-        raw_obs = []
-        emit(61, "hand")
-        emit_player(state.current_player)
-        for card in state.hand:
-            emit_card(card)
-        emit(55 + state.trump_suit, f"trump_{Card.valid_suit[state.trump_suit]}")
-        for trick, winner in zip(state.tricks, state.winners):
-            emit_trick(trick)
-            emit(60, "winner")
-        if self.game.is_over():
-            emit(62, "end")
-        else: 
-            emit_trick(state.current_trick)
-            emit_player(state.current_player)
-
         def emit(token: int, name: str):
             obs.append(token)
             raw_obs.append(name)
@@ -68,12 +56,35 @@ class SergeantMajorEnv(Env):
             for player_id, card in trick:
                 emit_player(player_id)
                 emit_card(card)
-
-        legal_actions = []
+                
+        obs = []
+        raw_obs = []
+        emit(61, "hand")
+        emit_player(state.current_player)
+        for card in state.hand:
+            emit_card(card)
+        emit(55 + state.trump_suit, f"trump_{Card.valid_suit[state.trump_suit]}")
+        for trick, winner in zip(state.tricks, state.winners):
+            emit_trick(trick)
+            emit(60, "winner")
+            emit_player(winner)
+        if self.game.is_over():
+            emit(62, "end")
+        else: 
+            emit_trick(state.current_trick)
+            emit_player(state.current_player)
+        assert len(obs) <= self.max_state_length
+        obs = np.array(obs)
+        if self.pad_state:
+            obs = np.pad(obs, (0,self.max_state_length - len(obs)), constant_values = 62)
+        assert len(obs) <= self.max_state_length, len(obs)
+        
+        legal_actions = {}
         raw_legal_actions = []
         for action in state.legal_actions:
-            legal_actions.append(action.get_index())
+            legal_actions[(action.get_index())] = None
             raw_legal_actions.append(str(action))
+        legal_actions = OrderedDict(legal_actions)
 
         extracted_state = {
             'obs': obs, 
@@ -120,4 +131,3 @@ class SergeantMajorEnv(Env):
         Optional method for loading saved models.
         """
         pass
-

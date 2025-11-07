@@ -45,7 +45,7 @@ class SergeantMajorRound:
         # four cards left in the deck that we are ignoring for now
 
         # in simplified sergeant major the trump suit is selected at random
-        self.trump_suit = self.np_random.choice(Card.valid_suit[:4])
+        self.trump_suit = self.np_random.choice(range(4))
 
     def proceed_round(self, action: Card) -> None:
         """

@@ -17,7 +17,7 @@ class SergeantMajorCard(Card):
         Returns: 
             card
         """
-        return SergeantMajorCard._deck[index]
+        return _deck[index]
 
     def get_index(self) -> int:
         """Returns the index associated with a card
@@ -25,7 +25,7 @@ class SergeantMajorCard(Card):
         Returns:
             index: Integer between 0 and 51
         """
-        for i, card in enumerate(SergeantMajorCard._deck):
+        for i, card in enumerate(_deck):
             if self == card:
                 return i
         raise IndexError()

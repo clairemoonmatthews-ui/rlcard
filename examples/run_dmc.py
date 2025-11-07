@@ -42,6 +42,7 @@ if __name__ == '__main__':
             'doudizhu',
             'mahjong',
             'no-limit-holdem',
+            'sergeant-major',
             'uno',
             'gin-rummy'
         ],
