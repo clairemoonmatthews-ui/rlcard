@@ -8,6 +8,7 @@ import numpy as np
 from argparse import ArgumentParser
 import torch
 from pathlib import Path
+import time
 
 
 class CompactJSONEncoder(json.JSONEncoder):
@@ -171,5 +172,8 @@ print(args)
 env = make_env(args)
 agent = make_agent(env, args)
 set_agents(env, agent, args)
+start_time = time.time()
 train(env, agent, args)
+duration = time.time() - start_time
+print(f"duration {duration}s; {args.num_episodes/duration} episodes/sec")
 save_agent(agent, args)
