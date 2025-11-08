@@ -95,9 +95,42 @@ class CompactJSONEncoder(json.JSONEncoder):
             joined = ",\n".join(parts)
             return f"[\n{joined}\n{outer_indent}]"
 
+def parse_args():
+    def str2bool(v):
+        return v.lower() in {'true', 't', '1', 'yes', 'y'}
+
+    parser = ArgumentParser()
+    parser.add_argument('--input', type=str)
+    parser.add_argument('--agent', type=str, default="DQNAgent")
+    parser.add_argument('--num-episodes', type=int)
+    parser.add_argument('--eval_every', type=int, default=1000)
+    parser.add_argument('--eval-episodes', type=int, default=100)
+    parser.add_argument('--output', type=str)
+    parser.add_argument('--pad-state', type=str2bool, default=True)
+    return parser.parse_args()
+
+
 def make_env(args) -> "Env":
     env = rlcard.make('sergeant-major', {"sergeant-major.pad_state": args.pad_state})
     return env
+
+
+def make_agent(env, args):
+    if args.agent == "DQNAgent":
+        if args.input:
+            path = Path(args.input)
+            checkpoint = torch.load(path / "checkpoint_dqn.pt", map_location="cpu")
+            agent = DQNAgent.from_checkpoint(checkpoint)
+        else:
+            agent = DQNAgent(
+                num_actions=env.num_actions, 
+                state_shape=env.state_shape,
+                mlp_layers=[64,64],
+                replay_memory_size=20000,
+                batch_size=32)
+    else:
+        raise NotImplementedError(f"Unknown agent {args.agent}")
+    return agent
 
 def set_agents(env: "Env", agent, args) -> None:
     random_agent = RandomAgent(num_actions=env.num_actions)
@@ -116,7 +149,7 @@ def train(env, agent, args):
 
     num_episodes = args.num_episodes or 10000
     eval_episodes = args.eval_episodes or 100
-    eval_every = args.aval_every or 1000
+    eval_every = args.eval_every or 1000
     eval_payoffs = []
     for episode in range(num_episodes):
         trajectories, payoffs = env.run(is_training=True)
@@ -127,36 +160,6 @@ def train(env, agent, args):
         if episode%eval_every == 0 or episode + 1 == num_episodes:
             eval_payoffs.append(evaluate())
     print(f"\n\npayoffs: {eval_payoffs}")
-
-def parse_args():
-    def str2bool(v):
-        return v.lower() in {'true', 't', '1', 'yes', 'y'}
-
-    parser = ArgumentParser()
-    parser.add_argument('--input', type=str)
-    parser.add_argument('--agent', type=str, default="DQNAgent")
-    parser.add_argument('--num-episodes', type=int)
-    parser.add_argument('--eval_every', type=int, default=1000)
-    parser.add_argument('--eval-episodes', type=int, default=100)
-    parser.add_argument('--output', type=str)
-    parser.add_argument('--pad-state', type=str2bool, default=True)
-    return parser.parse_args()
-
-def make_agent(env, args):
-    if args.agent == "DQNAgent":
-        if args.input:
-            torch.load(args.input)
-            agent = DQNAgent.from_checkpoint(args.input, map_location="cpu")
-        else:
-            agent = DQNAgent(
-                num_actions=env.num_actions, 
-                state_shape=env.state_shape,
-                mlp_layers=[64,64],
-                replay_memory_size=20000,
-                batch_size=32)
-    else:
-        raise NotImplementedError(f"Unknown agent {args.agent}")
-    return agent
 
 
 def save_agent(agent, args):
