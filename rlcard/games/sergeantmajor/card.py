@@ -30,6 +30,18 @@ class SergeantMajorCard(Card):
                 return i
         raise IndexError()
     
+    @property
+    def rank_index(self) -> int:
+        """Returns the index associated with a cards rank, ace is high so will be 13
+        
+        Returns:
+            index: Integer between 1 and 13
+        """
+        i = Card.valid_rank.index(self.rank)
+        if i == 0:
+            i = 13
+        return i
+    
 _deck = [
         SergeantMajorCard(suit=suit, rank=rank) 
         for suit in Card.valid_suit[:4] 
