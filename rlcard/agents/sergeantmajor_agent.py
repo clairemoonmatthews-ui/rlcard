@@ -8,6 +8,10 @@ from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.types import Hand, PlayerId, Trick, Tricks
 from rlcard.envs.sergeantmajor import SergeantMajorEnv
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 Token = SergeantMajorEnv.Token
 Suit = str
 Cards = List[SergeantMajorCard]
@@ -47,11 +51,12 @@ class HeuristicAgent:
         
         # Parse the observation to extract game state
         parsed_state = self._parse_state(obs)
+        logger.info(parsed_state)
         parsed_legal_actions: List[SergeantMajorCard] = [ Card.from_index(action) for action in legal_actions ]
         
         # Apply heuristic rules
         card = self._choose_action(parsed_state, parsed_legal_actions)
-        
+        # print(card)
         return card.get_index()
     
     def eval_step(self, state:Dict) -> Tuple[int, Dict]:
@@ -82,36 +87,42 @@ class HeuristicAgent:
                 current_trick: List of (player, card) tuples for current trick
                 trick_history: List of completed tricks
         """
+        # print(obs)
         hand = []
         trump_suit = None
         current_trick = []
         trick_history = []
         subsequent_players = set(range(3)) 
-        i = 0
-        while i < len(obs) and (trump_suit := Token.trump_suit(obs[i])) is None:
+        i = 0 
+        # read hand
+        while i < len(obs) and (trump_suit := Token.suit(obs[i])) is None:
             token = obs[i]
             if (card := Token.card(token)) is not None:
                 hand.append(card)
             i += 1
+        hand = sorted(hand, key=lambda c: c.sort_key)
+        # print(f"{hand=}, {i=}, {trump_suit=}")
+        # read tricks
         while i < len(obs):
             token = obs[i]
             if token == Token.START_TRICK:
                 if current_trick:
                     trick_history.append(current_trick)
                     current_trick = []
-            elif (player := Token.player(token)) is None:
-                pass
-            elif (card := Token.card(token)) is None:
+            elif (player_candidate := Token.player(token)) is not None:
+                player = player_candidate
+            elif (card := Token.card(token)) is not None:
+                assert player is not None, f"no player, trying to play {card=}, {token=}"
                 current_trick.append((player, card))
             i += 1
         subsequent_players.remove(player)
         for p, _ in current_trick:
-            subsequent_players.remove(p)
+            subsequent_players.discard(p)
         state = self.State(hand=hand, trump_suit=trump_suit, current_trick=current_trick, trick_history=trick_history, player=player, subsequent_players=subsequent_players)
         return state
 
     
-    def _choose_action(self, state: State, legal_actions: Cards):
+    def _choose_action(self, state: State, legal_actions: Cards) -> Card:
         """
         Apply heuristic rules to choose an action.
         
@@ -145,7 +156,7 @@ class HeuristicAgent:
                 if not state.current_trick:
                     return None
                 trick = state.current_trick
-                result = trick[0][0]
+                result = trick[0][1]
                 suit_led = trick[0][1].suit
                 best_rank = _card_rank(trick[0][1], suit_led)
                 for _, card in trick[1:]:
@@ -160,8 +171,9 @@ class HeuristicAgent:
             if not state.current_trick:
                 return cards
             result = []
+            suit_led = state.current_trick[0][1].suit
             winning_current_trick = determine_winning_card()
-            winning_current_trick_rank = _card_rank(winning_current_trick, winning_current_trick.suit)
+            winning_current_trick_rank = _card_rank(winning_current_trick, suit_led)
             for card in cards:
                 rank = _card_rank(card, winning_current_trick.suit)
                 if rank > winning_current_trick_rank:
@@ -173,7 +185,11 @@ class HeuristicAgent:
             result = []
             missing = missing_cards()
             for card in cards:
-                max_missing = max_rank(filter_by_suit(missing, card.suit))
+                missing_in_suit = filter_by_suit(missing, card.suit)
+                if not missing_in_suit:
+                    result.append(card)
+                    continue
+                max_missing = max_rank(missing_in_suit)
                 if card.rank_index > max_missing.rank_index:
                     result.append(card)
             return result
@@ -196,10 +212,12 @@ class HeuristicAgent:
         def missing_cards() -> Cards:
             """Returns the set of cards that are neither played, nor in the player's hand."""
             deck = set(Card.get_deck())
-            return list(deck - state.hand - played())
+            result = list(deck.difference(state.hand).difference(played()))
+            # print(f"{deck=}, {state.hand=}, {played()=}, {result=}")
+            return result
     
 
-        def filter_by_suit(cards: Cards, suit Suit) -> Cards:
+        def filter_by_suit(cards: Cards, suit: Suit) -> Cards:
             """Returns the subset of cards in some suit"""
             result = []
             for card in cards:
@@ -209,12 +227,12 @@ class HeuristicAgent:
         
         def n_trumps_out() -> int:
             """Returns the number of trumps that are neither played nor in the current player's hand (or for dealer, in the kitty)"""
-            return len(filter_by_suit(missing_cards()))
+            return len(filter_by_suit(missing_cards(), state.trump_suit))
 
-        def shortest_suit() -> Suit:
+        def shortest_suit(cards: Cards) -> Suit:
             """Returns the suit with the fewest cards in the set; if there is a tie, the lower pip count is selected, or the choice is arbitrary.  Empty suits will not be considered."""
             suit_counts = Counter()
-            for card in state.hand:
+            for card in cards:
                 suit_counts[card.suit] += 1
             suit_counts = suit_counts.most_common()
             return suit_counts[-1][0]            
@@ -256,31 +274,42 @@ class HeuristicAgent:
         if not state.current_trick: # first player
             # if you have declared trumps, play it
             if cards := filter_declared_trump(legal_actions):
+                logger.info("First player: Playing declared trump")
                 return choose(cards)
             # if you have declared card with no known players void, play it 
             elif cards := filter_declared(filter_does_not_play_into_void(legal_actions)):
+                logger.info("First player: Playing declared not into void")
                 return choose(cards)
             # if you have declared card with players void but no trumps, play it
-            elif cards := filter_declared(legal_actions) and n_trumps_out(legal_actions) == 0:
+            elif (cards := filter_declared(legal_actions)) and n_trumps_out() == 0:
+                logger.info("First player: Playing declared with no trumps out")
                 return choose(cards)
             else: # play the lowest card of the suit they have the least of 
                 suit = shortest_suit(legal_actions)
+                logger.info("First player: Playing lowest from shortest suit")
                 return min_rank(filter_by_suit(legal_actions, suit))
 
         elif len(state.current_trick) == 1: # second player
             if winners := filter_does_not_play_into_void(filter_winners(legal_actions)):
                 if declared := filter_declared(winners):
-                    return declared
+                    logger.info("Second player: Playing declared winner not into void")
+                    return min_rank(declared)
                 else:
+                    logger.info("Second player: Playing minimum rank winner")
                     return min_rank(winners)
             else:
-                suit = shortest_suit(legal_actions)
-                return min_rank(filter_by_suit(legal_actions, suit))
+                logger.info("Second player: Playing minimum rank")
+                return min_rank(legal_actions)
+                # suit = shortest_suit(legal_actions)
+                # logger.info("Second player: Playing minimum rank from shortest suit")
+                # return min_rank(filter_by_suit(legal_actions, suit))
             
         else: # third player
             if winners := filter_winners(legal_actions):
+                logger.info("Third player: Playing minimum rank winner")
                 return min_rank(winners)
             else:
+                logger.info("Third player: Playing minimum rank")
                 return min_rank(legal_actions)
 
         

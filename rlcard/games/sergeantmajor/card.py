@@ -42,8 +42,16 @@ class SergeantMajorCard(Card):
             i = 13
         return i
     
+    def __repr__(self):
+        return f"{self.rank}{self.suit}"
+    
+    @property
+    def sort_key(self):
+        return (self.suit, self.rank_index)
+    
 _deck = [
         SergeantMajorCard(suit=suit, rank=rank) 
         for suit in Card.valid_suit[:4] 
         for rank in Card.valid_rank
     ]
+

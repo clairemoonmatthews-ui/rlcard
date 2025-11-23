@@ -41,7 +41,7 @@ class SergeantMajorEnv(Env):
         def player(cls, token: int) -> Optional[PlayerId]:
             """If token represents a player, returns the player id; otherwise returns None"""
             if token in range(cls.FIRST_PLAYER, cls.FIRST_SUIT):
-                return token - cls.FIRST_PLAYER
+                return token.item() - cls.FIRST_PLAYER
             else:
                 return None
 
@@ -161,7 +161,7 @@ class SergeantMajorEnv(Env):
         Returns:
             List of payoffs (one per player)
         """
-        return SergeantMajorJudger.judge_game(self.game)
+        return np.array(SergeantMajorJudger.judge_game(self.game))
     
     def _load_model(self) -> None:
         """
