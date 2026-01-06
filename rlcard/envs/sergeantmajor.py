@@ -16,6 +16,8 @@ class SergeantMajorEnv(Env):
     """
     
     max_state_length = 163
+    vocab_size = 63
+    actions = 52
 
     # 0-51 card, 52-54 player, 55-58 trump, 59 start_trick, 60 winner, 61 hand, 62 end
     # e.g. hand, player1, card_6S, ...x16..., trump_S, start_trick, player1, card_6S, player2, card_KH, player3, card_7S, winner, player3, ...x16... end

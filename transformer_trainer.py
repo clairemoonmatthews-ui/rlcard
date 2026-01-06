@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 from argparse import ArgumentParser
 from collections import defaultdict
 import json
@@ -5,8 +7,13 @@ import torch.nn as nn
 import torch
 import logging
 
+import rlcard
+from rlcard.agents.transformer_agent import TransformerAgent
+from rlcard.envs.env import Env
+from rlcard.envs.sergeantmajor import SergeantMajorEnv
+
 logging.basicConfig(level=logging.INFO)
-logger = logger.getlogger(__name__)
+logger = logging.getLogger(__name__)
 
 def load_batches(file_name, max_batch_size):
     buckets = defaultdict(list)
@@ -29,15 +36,27 @@ def load_batches(file_name, max_batch_size):
     return batches
 
 
-def make_agent(args):
-    pass
+def make_env(args) -> "Env":
+    env = rlcard.make('sergeant-major')
+    return env
 
-def save_agent(args):
-    pass
+
+def make_agent(args, env:SergeantMajorEnv):
+    if args.input:
+        agent = TransformerAgent.load(args.input)
+    else:
+        agent = TransformerAgent(vocab_size=env.vocab_size, actions=env.actions, max_seq_len=env.max_state_length)
+    return agent
+
+
+def save_agent(args, agent):
+    agent.save(args.output)
+    
 
 def train(args):
     batches = load_batches(args.training_data, args.max_batch_size)
-    agent = make_agent(args)
+    env = make_env(args)
+    agent = make_agent(args, env)
     loss_func = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(agent.parameters(), lr=args.lr)
     for epoch in range(args.number_epochs):
@@ -55,18 +74,22 @@ def train(args):
             greedy_predictions = predicted_actions.argmax(dim=1)
             total_correct += (greedy_predictions==actions).sum().item()
         print(f"epoch number = {epoch}, average loss = {total_loss/total_n}, accuracy = {total_correct/total_n}")
-    save_agent(args)
+    save_agent(args, agent)
 
 def parse_args():
     def str2bool(v):
         return v.lower() in {'true', 't', '1', 'yes', 'y'}
 
     parser = ArgumentParser()
-    parser.add_argument('--training-data', type=str)
+    parser.add_argument('--training-data', type=str, required=True)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--number-epochs', type=int, default=1)
     parser.add_argument('--max-batch-size', type=int, default=512)
+    parser.add_argument('--input', type=str)
+    parser.add_argument('--output', type=str, required=True)
     return parser.parse_args()
 
 args = parse_args()
 train(args)
+
+

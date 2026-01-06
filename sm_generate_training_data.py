@@ -24,7 +24,7 @@ def set_agents(env: "Env", position=0):
     agents[position] = agent
     env.set_agents(agents)
 
-n_games = 10
+n_games = 1000
 wins = 0
 for _ in range(n_games):
     position = np.random.randint(3)
