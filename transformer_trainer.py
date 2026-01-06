@@ -2,7 +2,9 @@
 
 from argparse import ArgumentParser
 from collections import defaultdict
+from datetime import datetime, timezone
 import json
+import os
 import torch.nn as nn
 import torch
 import logging
@@ -14,6 +16,36 @@ from rlcard.envs.sergeantmajor import SergeantMajorEnv
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def resolve_input_path(path):
+    """
+    If path is a directory, return the lexically last (most recent) file in it.
+    Otherwise, return the path as-is.
+    """
+    if os.path.isdir(path):
+        files = sorted([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
+        if not files:
+            raise ValueError(f"Directory {path} contains no files")
+        selected_file = files[-1]  # Lexically last
+        resolved_path = os.path.join(path, selected_file)
+        logger.info(f"Input is directory, selected most recent file: {resolved_path}")
+        return resolved_path
+    return path
+
+
+def resolve_output_path(path):
+    """
+    If path is a directory, generate a filename based on ISO date-seconds-UTC.
+    Otherwise, return the path as-is.
+    """
+    if os.path.isdir(path):
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        filename = f"model_{timestamp}.pt"
+        resolved_path = os.path.join(path, filename)
+        logger.info(f"Output is directory, using generated filename: {resolved_path}")
+        return resolved_path
+    return path
+
 
 def load_batches(file_name, max_batch_size):
     buckets = defaultdict(list)
@@ -43,14 +75,22 @@ def make_env(args) -> "Env":
 
 def make_agent(args, env:SergeantMajorEnv):
     if args.input:
-        agent = TransformerAgent.load(args.input)
+        input_path = resolve_input_path(args.input)
+        agent = TransformerAgent.load(input_path)
     else:
         agent = TransformerAgent(vocab_size=env.vocab_size, actions=env.actions, max_seq_len=env.max_state_length)
     return agent
 
 
-def save_agent(args, agent):
-    agent.save(args.output)
+def save_agent(args, agent, epoch=None):
+    output_path = resolve_output_path(args.output)
+    # If saving per epoch, insert epoch number into filename
+    if epoch is not None:
+        base, ext = os.path.splitext(output_path)
+        output_path = f"{base}_epoch{epoch}{ext}"
+    agent.save(output_path)
+    logger.info(f"Model saved to: {output_path}")
+    return output_path
     
 
 def train(args):
@@ -74,7 +114,11 @@ def train(args):
             greedy_predictions = predicted_actions.argmax(dim=1)
             total_correct += (greedy_predictions==actions).sum().item()
         print(f"epoch number = {epoch}, average loss = {total_loss/total_n}, accuracy = {total_correct/total_n}")
-    save_agent(args, agent)
+        if args.save_per_epoch:
+            save_agent(args, agent, epoch=epoch)
+    # Always save final model (without epoch suffix if not save_per_epoch)
+    if not args.save_per_epoch:
+        save_agent(args, agent)
 
 def parse_args():
     def str2bool(v):
@@ -87,6 +131,8 @@ def parse_args():
     parser.add_argument('--max-batch-size', type=int, default=512)
     parser.add_argument('--input', type=str)
     parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--save-per-epoch', action='store_true', 
+                        help='Save model after each epoch with epoch number in filename')
     return parser.parse_args()
 
 args = parse_args()
