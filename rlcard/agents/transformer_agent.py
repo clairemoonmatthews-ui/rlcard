@@ -29,7 +29,7 @@ class TransformerAgent(nn.Module):
         return policy
 
     def save(self, file_name):
-        data = dict(vocab_size=self.embedding.num_embeddings, actions=self.policy.out_features, max_seq_len=self.pos_embedding.num_embeddings, embedding_dimension=self.embedding.embedding_dim, n_attention_head=self.stack.layers[0].self_attn.num_heads, layers=len(self.stack.layers), dim_feed_forward=self.stack.layers[0].linear1.out_features)
+        data = dict(vocab_size=self.embedding.num_embeddings, actions=self.policy.out_features, max_seq_len=self.pos_embedding.num_embeddings, embedding_dimension=self.embedding.embedding_dim, n_attention_head=self.stack.layers[0].self_attn.num_heads, layers=len(self.stack.layers), dim_feed_forward=self.stack.layers[0].linear1.out_features, state=self.state_dict())
         torch.save(data, file_name)
 
     @classmethod
