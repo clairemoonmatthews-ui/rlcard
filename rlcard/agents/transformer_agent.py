@@ -1,9 +1,11 @@
+from typing import Dict, Tuple
 import torch
 import torch.nn as nn
 
 class TransformerAgent(nn.Module):
-    def __init__(self, vocab_size, actions, max_seq_len, embedding_dimension=32, n_attention_head=4, layers=2, dim_feed_forward=256):
+    def __init__(self, vocab_size, actions, max_seq_len, embedding_dimension=32, n_attention_head=4, layers=2, dim_feed_forward=256, device='cpu'):
         super().__init__()
+        self.use_raw = False  # RLCard convention
         self.embedding = nn.Embedding(vocab_size, embedding_dimension)
         self.pos_embedding = nn.Embedding(max_seq_len, embedding_dimension)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -14,11 +16,14 @@ class TransformerAgent(nn.Module):
         )
         self.stack = nn.TransformerEncoder(encoder_layer=encoder_layer, num_layers=layers)
         self.policy = nn.Linear(in_features=embedding_dimension, out_features=actions) 
+        self.actions = 52
+        self.device = device
 
     def forward(self, obs, legal_mask=None):
+        assert str(obs.device) == self.device, f"obs={obs.device}, self={self.device}"
         batch_size, seq_len = obs.shape
         x = self.embedding(obs)
-        positions = torch.arange(seq_len, device=obs.device).unsqueeze(0).expand(batch_size, -1)
+        positions = torch.arange(seq_len, device=self.device).unsqueeze(0).expand(batch_size, -1)
         pos_embedding = self.pos_embedding(positions)
         x += pos_embedding
         x = self.stack(x)
@@ -31,6 +36,45 @@ class TransformerAgent(nn.Module):
     def save(self, file_name):
         data = dict(vocab_size=self.embedding.num_embeddings, actions=self.policy.out_features, max_seq_len=self.pos_embedding.num_embeddings, embedding_dimension=self.embedding.embedding_dim, n_attention_head=self.stack.layers[0].self_attn.num_heads, layers=len(self.stack.layers), dim_feed_forward=self.stack.layers[0].linear1.out_features, state=self.state_dict())
         torch.save(data, file_name)
+
+
+    def step(self, state:Dict) -> int:
+        """
+        Called during gameplay to select an action.
+        
+        Args:
+            state: Dict with 'obs' (token sequence) and 'legal_actions' (list of valid card indices)
+        
+        Returns:
+            action: Integer in range [0, 51] representing card to play
+        """
+        legal_actions = state['legal_actions']
+        obs = state['obs']  # The token sequence
+        self.eval()
+        with torch.no_grad():
+            obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
+            legal_actions = torch.tensor(list(legal_actions.keys()), dtype=torch.long, device=self.device)
+            logits = self(obs)
+            mask = torch.ones(self.actions, dtype=torch.bool, device=self.device)
+            mask[legal_actions] = False
+            logits = logits.masked_fill(mask, float('-inf'))
+            action = logits.argmax(dim = 1).item()
+        return action
+
+    
+    def eval_step(self, state:Dict) -> Tuple[int, Dict]:
+        """
+        Called during evaluation - returns action and info dict.
+        
+        Args:
+            state: Same as step()
+        
+        Returns:
+            action: Selected action
+            info: Dict with any debugging/analysis info (can be empty)
+        """
+        action = self.step(state)
+        return action, {}
 
     @classmethod
     def load(cls, file_name, device="cpu", train=True):
