@@ -95,9 +95,9 @@ def training(agent, n=10000, lr=1e-6):
         optimizer.zero_grad()
         total_loss.backward()
         optimizer.step()
-        if n%100 == 0:
+        if i%100 == 0:
             run_tournaments(agent, epoch=i)
-        if n%100 == 0:
+        if i%100 == 0:
             save_agent("models", agent, epoch=i)
 
 
