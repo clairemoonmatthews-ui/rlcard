@@ -4,6 +4,7 @@ import rlcard
 from rlcard.agents import random_agent
 from rlcard.agents.random_agent import RandomAgent
 from rlcard.agents.sergeantmajor_agent import HeuristicAgent
+from rlcard.agents.transformer_agent import TransformerAgent
 from rlcard.envs.env import Env
 from rlcard.utils.utils import tournament
 
@@ -16,13 +17,15 @@ def make_env() -> "Env":
     return env
 
 def set_agents(env: "Env", position=0):
-    random_agent = RandomAgent(num_actions=env.num_actions)
-    agent = HeuristicAgent()
-    agents = [random_agent, random_agent, random_agent]
+    #random_agent = RandomAgent(num_actions=env.num_actions)
+    h_agent = HeuristicAgent()
+    input_path = './models/model_20260107T042047Z_epoch24.pt'
+    agent = TransformerAgent.load(input_path)
+    agents = [h_agent] * 3
     agents[position] = agent
     env.set_agents(agents)
 
-n_games = 100
+n_games = 1000
 wins = 0
 for _ in range(n_games):
     position = np.random.randint(3)
