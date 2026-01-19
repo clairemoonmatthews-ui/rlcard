@@ -54,7 +54,8 @@ def load_batches(file_name, max_batch_size):
             d = json.loads(line)
             obs = d['obs']
             actions = d['action']
-            buckets[len(obs)].append((obs, actions))
+            payoff = d['payoff']/16
+            buckets[len(obs)].append((obs, actions, payoff))
     logger.info(f"Read {sum(len(x) for x in buckets.values())} records from {file_name}")
     batches = []
     for length in sorted(buckets.keys()):
@@ -63,7 +64,8 @@ def load_batches(file_name, max_batch_size):
             r = records[i:i+max_batch_size]
             obs = torch.stack([torch.tensor(rec[0], dtype=torch.long) for rec in r])
             actions = torch.tensor([rec[1] for rec in r], dtype=torch.long)
-            batches.append((obs, actions))
+            payoff = torch.tensor([rec[2] for rec in r], dtype=torch.float)
+            batches.append((obs, actions, payoff))
     logger.info(f"Generated {len(batches)} batches from {len(buckets)} lengths")
     return batches
 
@@ -97,23 +99,28 @@ def train(args):
     batches = load_batches(args.training_data, args.max_batch_size)
     env = make_env(args)
     agent = make_agent(args, env)
-    loss_func = nn.CrossEntropyLoss()
+    policy_loss_func = nn.CrossEntropyLoss()
+    value_loss_func = nn.MSELoss()
     optimizer = torch.optim.Adam(agent.parameters(), lr=args.lr)
     for epoch in range(args.number_epochs):
-        total_loss = 0
+        total_policy_loss = 0
+        total_value_loss = 0
         total_n = 0
         total_correct = 0
-        for obs, actions in batches:
+        for obs, actions, payoffs in batches:
             optimizer.zero_grad()
-            predicted_actions = agent(obs)
-            loss = loss_func(predicted_actions, actions)
+            predicted_actions, predicted_values = agent(obs)
+            policy_loss = policy_loss_func(predicted_actions, actions)
+            value_loss = value_loss_func(predicted_values, payoffs)
+            loss = policy_loss + value_loss * args.value_loss_weight
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
+            total_policy_loss += policy_loss.item()
+            total_value_loss += value_loss
             total_n += len(actions)
             greedy_predictions = predicted_actions.argmax(dim=1)
             total_correct += (greedy_predictions==actions).sum().item()
-        print(f"epoch number = {epoch}, average loss = {total_loss/total_n}, accuracy = {total_correct/total_n}")
+        print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}")
         if args.save_per_epoch:
             save_agent(args, agent, epoch=epoch)
     # Always save final model (without epoch suffix if not save_per_epoch)
@@ -131,6 +138,7 @@ def parse_args():
     parser.add_argument('--max-batch-size', type=int, default=512)
     parser.add_argument('--input', type=str)
     parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--value_loss_weight', type=float, default=1)
     parser.add_argument('--save-per-epoch', action='store_true', 
                         help='Save model after each epoch with epoch number in filename')
     return parser.parse_args()

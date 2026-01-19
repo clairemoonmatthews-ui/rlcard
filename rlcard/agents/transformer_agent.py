@@ -17,7 +17,8 @@ class TransformerAgent(nn.Module):
         )
         self.stack = nn.TransformerEncoder(encoder_layer=encoder_layer, num_layers=layers)
         self.policy = nn.Linear(in_features=embedding_dimension, out_features=actions) 
-        self.actions = 52
+        self.value = nn.Linear(in_features=embedding_dimension, out_features=1) 
+        self.actions = actions
         self.device = device
 
     def forward(self, obs, legal_mask=None):
@@ -32,7 +33,8 @@ class TransformerAgent(nn.Module):
         policy = self.policy(x)
         if legal_mask is not None:
             policy = policy.masked_fill(~legal_mask, float('-inf'))
-        return policy
+        value = self.value(x).squeeze(-1)
+        return policy, value
 
     def save(self, file_name):
         data = dict(vocab_size=self.embedding.num_embeddings, actions=self.policy.out_features, max_seq_len=self.pos_embedding.num_embeddings, embedding_dimension=self.embedding.embedding_dim, n_attention_head=self.stack.layers[0].self_attn.num_heads, layers=len(self.stack.layers), dim_feed_forward=self.stack.layers[0].linear1.out_features, state=self.state_dict())
@@ -50,17 +52,32 @@ class TransformerAgent(nn.Module):
             action: Integer in range [0, 51] representing card to play
         """
         legal_actions = state['legal_actions']
-        obs = state['obs']  # The token sequence
         with self.training_mode(False):
             with torch.no_grad():
                 obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
                 legal_actions = torch.tensor(list(legal_actions.keys()), dtype=torch.long, device=self.device)
-                logits = self(obs)
+                logits, _ = self(obs)
                 mask = torch.ones(self.actions, dtype=torch.bool, device=self.device)
                 mask[legal_actions] = False
                 logits = logits.masked_fill(mask, float('-inf'))
                 action = logits.argmax(dim = 1).item()
         return action
+    
+    def get_value(self, state:Dict) -> float:
+        """
+        Called during gameplay to get the value.
+        
+        Args:
+            state: Dict with 'obs' (token sequence) and 'legal_actions' (list of valid card indices)
+        
+        Returns:
+            estimated value
+        """
+        with self.training_mode(False):
+            with torch.no_grad():
+                obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
+                _, value = self(obs)
+        return value.item()
     
     @contextmanager 
     def training_mode(self, mode=bool):
