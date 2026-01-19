@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Dict, Tuple
 import torch
 import torch.nn as nn
@@ -50,16 +51,25 @@ class TransformerAgent(nn.Module):
         """
         legal_actions = state['legal_actions']
         obs = state['obs']  # The token sequence
-        self.eval()
-        with torch.no_grad():
-            obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
-            legal_actions = torch.tensor(list(legal_actions.keys()), dtype=torch.long, device=self.device)
-            logits = self(obs)
-            mask = torch.ones(self.actions, dtype=torch.bool, device=self.device)
-            mask[legal_actions] = False
-            logits = logits.masked_fill(mask, float('-inf'))
-            action = logits.argmax(dim = 1).item()
+        with self.training_mode(False):
+            with torch.no_grad():
+                obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
+                legal_actions = torch.tensor(list(legal_actions.keys()), dtype=torch.long, device=self.device)
+                logits = self(obs)
+                mask = torch.ones(self.actions, dtype=torch.bool, device=self.device)
+                mask[legal_actions] = False
+                logits = logits.masked_fill(mask, float('-inf'))
+                action = logits.argmax(dim = 1).item()
         return action
+    
+    @contextmanager 
+    def training_mode(self, mode=bool):
+        old_mode = self.training
+        try: 
+            self.train(mode)
+            yield
+        finally:
+            self.train(old_mode)
 
     
     def eval_step(self, state:Dict) -> Tuple[int, Dict]:
