@@ -112,19 +112,23 @@ def train(args):
     env = make_env(args)
     agent = make_agent(args, env)
 
-    if hasattr(torch, 'compile'):
+    if args.compile and hasattr(torch, 'compile'):
         logger.info("Compiling model with torch.compile")
+        start_time = datetime.now()
         agent = torch.compile(agent, mode='reduce-overhead')
+        end_time = datetime.now()
+        logger.info(f"Model compilation took {end_time - start_time}")
 
     policy_loss_func = nn.CrossEntropyLoss()
     value_loss_func = nn.MSELoss()
     optimizer = torch.optim.Adam(agent.parameters(), lr=args.lr)
+    start_time = datetime.now()
     for epoch in range(args.number_epochs):
         total_policy_loss = 0
         total_value_loss = 0
         total_n = 0
         total_correct = 0
-        for obs, actions, payoffs in batches:
+        for i, (obs, actions, payoffs) in enumerate(batches):
             optimizer.zero_grad()
             predicted_actions, predicted_values = agent(obs)
             policy_loss = policy_loss_func(predicted_actions, actions)
@@ -138,28 +142,28 @@ def train(args):
             total_n += len(actions)
             greedy_predictions = predicted_actions.argmax(dim=1)
             total_correct += (greedy_predictions == actions).sum().item()
-        print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}")
+            if i % 100 == 0:
+                print(
+                    f"Epoch {epoch}, Batch {i}, Policy Loss: {policy_loss.item()/len(actions)}, Value Loss: {value_loss.item()/len(actions)}, {(datetime.now() - start_time).total_seconds()/ (i+1)} s/batch")
+        print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}, {(datetime.now() - start_time).total_seconds()/ (epoch+1)} s/epoch ")
         if args.save_per_epoch:
             save_agent(args, agent, epoch=epoch)
-    # Always save final model (without epoch suffix if not save_per_epoch)
-    if not args.save_per_epoch:
-        save_agent(args, agent)
+    save_agent(args, agent)
 
 
 def parse_args():
-    def str2bool(v):
-        return v.lower() in {'true', 't', '1', 'yes', 'y'}
-
     parser = ArgumentParser()
     parser.add_argument('--training-data', type=str, required=True)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--number-epochs', type=int, default=1)
-    parser.add_argument('--max-batch-size', type=int, default=1024)
+    parser.add_argument('--max-batch-size', type=int, default=2**14)
     parser.add_argument('--input', type=str)
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--value-loss-weight', type=float, default=1)
     parser.add_argument('--save-per-epoch', action='store_true',
                         help='Save model after each epoch with epoch number in filename')
+    parser.add_argument('--compile', type=bool, default=True,
+                        help='Whether to use torch.compile to optimize the model')
     return parser.parse_args()
 
 
