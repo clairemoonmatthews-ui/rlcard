@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 from argparse import ArgumentParser
+from math import sqrt
 from collections import defaultdict
 from datetime import datetime, timezone
 import json
@@ -36,14 +37,17 @@ def resolve_input_path(path):
     return path
 
 
-def resolve_output_path(path):
+def resolve_output_path(path, epoch=None):
     """
     If path is a directory, generate a filename based on ISO date-seconds-UTC.
     Otherwise, return the path as-is.
     """
     if os.path.isdir(path):
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        filename = f"model_{timestamp}.pt"
+        if epoch is not None:
+            filename = f"model_{timestamp}_epoch{epoch}.pt"
+        else:
+            filename = f"model_{timestamp}.pt"
         resolved_path = os.path.join(path, filename)
         logger.info(
             f"Output is directory, using generated filename: {resolved_path}")
@@ -93,11 +97,8 @@ def make_agent(args, env: SergeantMajorEnv):
 
 
 def save_agent(args, agent, epoch=None):
-    output_path = resolve_output_path(args.output)
+    output_path = resolve_output_path(args.output, epoch=epoch)
     # If saving per epoch, insert epoch number into filename
-    if epoch is not None:
-        base, ext = os.path.splitext(output_path)
-        output_path = f"{base}_epoch{epoch}{ext}"
     agent.save(output_path)
     logger.info(f"Model saved to: {output_path}")
     return output_path
@@ -145,7 +146,7 @@ def train(args):
             if i % 100 == 0:
                 print(
                     f"Epoch {epoch}, Batch {i}, Policy Loss: {policy_loss.item()/len(actions)}, Value Loss: {value_loss.item()/len(actions)}, {(datetime.now() - start_time).total_seconds()/ (i+1)} s/batch")
-        print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}, {(datetime.now() - start_time).total_seconds()/ (epoch+1)} s/epoch ")
+        print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}, RMS value error = {sqrt(total_value_loss/total_n)} {(datetime.now() - start_time).total_seconds()/ (epoch+1)} s/epoch ")
         if args.save_per_epoch:
             save_agent(args, agent, epoch=epoch)
     save_agent(args, agent)

@@ -117,13 +117,15 @@ class PlayerState:
                 assert player is not None, f"no player, trying to play {card=}, {token=}"
                 current_trick.append((player, card))
             i += 1
-        state = cls(hand=hand, trump_suit=trump_suit, current_trick=current_trick, tricks=trick_history, current_player=player)
+        state = cls(
+            hand=hand, 
+            trump_suit=trump_suit, 
+            current_trick=current_trick, 
+            tricks=trick_history, 
+            current_player=player,
+            # derived fields not required for minimal PlayerState
+            tricks_win=None,
+            legal_actions=None,
+            winners=None,
+        )
         return state
-    
-    
-    
-    
-    tricks_won: int 
-    legal_actions: Actions 
-    
-    winners: List[PlayerId]
