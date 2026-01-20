@@ -17,18 +17,21 @@ from rlcard.envs.sergeantmajor import SergeantMajorEnv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def resolve_input_path(path):
     """
     If path is a directory, return the lexically last (most recent) file in it.
     Otherwise, return the path as-is.
     """
     if os.path.isdir(path):
-        files = sorted([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
+        files = sorted([f for f in os.listdir(
+            path) if os.path.isfile(os.path.join(path, f))])
         if not files:
             raise ValueError(f"Directory {path} contains no files")
         selected_file = files[-1]  # Lexically last
         resolved_path = os.path.join(path, selected_file)
-        logger.info(f"Input is directory, selected most recent file: {resolved_path}")
+        logger.info(
+            f"Input is directory, selected most recent file: {resolved_path}")
         return resolved_path
     return path
 
@@ -42,7 +45,8 @@ def resolve_output_path(path):
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         filename = f"model_{timestamp}.pt"
         resolved_path = os.path.join(path, filename)
-        logger.info(f"Output is directory, using generated filename: {resolved_path}")
+        logger.info(
+            f"Output is directory, using generated filename: {resolved_path}")
         return resolved_path
     return path
 
@@ -56,17 +60,20 @@ def load_batches(file_name, max_batch_size):
             actions = d['action']
             payoff = d['payoff']/16
             buckets[len(obs)].append((obs, actions, payoff))
-    logger.info(f"Read {sum(len(x) for x in buckets.values())} records from {file_name}")
+    logger.info(
+        f"Read {sum(len(x) for x in buckets.values())} records from {file_name}")
     batches = []
     for length in sorted(buckets.keys()):
         records = buckets[length]
-        for i in range(0,len(records), max_batch_size):
+        for i in range(0, len(records), max_batch_size):
             r = records[i:i+max_batch_size]
-            obs = torch.stack([torch.tensor(rec[0], dtype=torch.long) for rec in r])
+            obs = torch.stack(
+                [torch.tensor(rec[0], dtype=torch.long) for rec in r])
             actions = torch.tensor([rec[1] for rec in r], dtype=torch.long)
             payoff = torch.tensor([rec[2] for rec in r], dtype=torch.float)
             batches.append((obs, actions, payoff))
-    logger.info(f"Generated {len(batches)} batches from {len(buckets)} lengths")
+    logger.info(
+        f"Generated {len(batches)} batches from {len(buckets)} lengths")
     return batches
 
 
@@ -75,12 +82,13 @@ def make_env(args) -> "Env":
     return env
 
 
-def make_agent(args, env:SergeantMajorEnv):
+def make_agent(args, env: SergeantMajorEnv):
     if args.input:
         input_path = resolve_input_path(args.input)
         agent = TransformerAgent.load(input_path)
     else:
-        agent = TransformerAgent(vocab_size=env.vocab_size, actions=env.actions, max_seq_len=env.max_state_length)
+        agent = TransformerAgent(
+            vocab_size=env.vocab_size, actions=env.actions, max_seq_len=env.max_state_length)
     return agent
 
 
@@ -93,12 +101,21 @@ def save_agent(args, agent, epoch=None):
     agent.save(output_path)
     logger.info(f"Model saved to: {output_path}")
     return output_path
-    
+
 
 def train(args):
+    # Use all CPU cores
+    torch.set_num_threads(os.cpu_count())
+    logger.info(f"Using {torch.get_num_threads()} CPU threads")
+
     batches = load_batches(args.training_data, args.max_batch_size)
     env = make_env(args)
     agent = make_agent(args, env)
+
+    if hasattr(torch, 'compile'):
+        logger.info("Compiling model with torch.compile")
+        agent = torch.compile(agent, mode='reduce-overhead')
+
     policy_loss_func = nn.CrossEntropyLoss()
     value_loss_func = nn.MSELoss()
     optimizer = torch.optim.Adam(agent.parameters(), lr=args.lr)
@@ -114,18 +131,20 @@ def train(args):
             value_loss = value_loss_func(predicted_values, payoffs)
             loss = policy_loss + value_loss * args.value_loss_weight
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1.0)
             optimizer.step()
             total_policy_loss += policy_loss.item()
-            total_value_loss += value_loss
+            total_value_loss += value_loss.item()
             total_n += len(actions)
             greedy_predictions = predicted_actions.argmax(dim=1)
-            total_correct += (greedy_predictions==actions).sum().item()
+            total_correct += (greedy_predictions == actions).sum().item()
         print(f"epoch number = {epoch}, average policy loss = {total_policy_loss/total_n}, average value loss = {total_value_loss/total_n},accuracy = {total_correct/total_n}")
         if args.save_per_epoch:
             save_agent(args, agent, epoch=epoch)
     # Always save final model (without epoch suffix if not save_per_epoch)
     if not args.save_per_epoch:
         save_agent(args, agent)
+
 
 def parse_args():
     def str2bool(v):
@@ -135,15 +154,14 @@ def parse_args():
     parser.add_argument('--training-data', type=str, required=True)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--number-epochs', type=int, default=1)
-    parser.add_argument('--max-batch-size', type=int, default=512)
+    parser.add_argument('--max-batch-size', type=int, default=1024)
     parser.add_argument('--input', type=str)
     parser.add_argument('--output', type=str, required=True)
-    parser.add_argument('--value_loss_weight', type=float, default=1)
-    parser.add_argument('--save-per-epoch', action='store_true', 
+    parser.add_argument('--value-loss-weight', type=float, default=1)
+    parser.add_argument('--save-per-epoch', action='store_true',
                         help='Save model after each epoch with epoch number in filename')
     return parser.parse_args()
 
+
 args = parse_args()
 train(args)
-
-

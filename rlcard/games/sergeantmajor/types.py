@@ -9,15 +9,4 @@ Hand = List[Card]
 Actions = List[Card]
 Suit = int
 
-@dataclass
-class PlayerState:
-    """Type definition for a player's observable state."""
-    current_player: PlayerId
-    hand: Hand 
-    current_trick: Trick 
-    tricks: Tricks 
-    tricks_won: int 
-    legal_actions: Actions 
-    trump_suit: Suit
-    winners: List[PlayerId]
 
