@@ -62,8 +62,8 @@ def load_batches(file_name, max_batch_size):
             d = json.loads(line)
             obs = d['obs']
             actions = d['action']
-            payoff = d['payoff']/16
-            buckets[len(obs)].append((obs, actions, payoff))
+            payoffs = [x/16 for x in d['payoffs']]
+            buckets[len(obs)].append((obs, actions, payoffs))
     logger.info(
         f"Read {sum(len(x) for x in buckets.values())} records from {file_name}")
     batches = []
@@ -74,8 +74,9 @@ def load_batches(file_name, max_batch_size):
             obs = torch.stack(
                 [torch.tensor(rec[0], dtype=torch.long) for rec in r])
             actions = torch.tensor([rec[1] for rec in r], dtype=torch.long)
-            payoff = torch.tensor([rec[2] for rec in r], dtype=torch.float)
-            batches.append((obs, actions, payoff))
+            payoffs = torch.stack(
+                [torch.tensor(rec[2], dtype=torch.float) for rec in r])
+            batches.append((obs, actions, payoffs)) 
     logger.info(
         f"Generated {len(batches)} batches from {len(buckets)} lengths")
     return batches

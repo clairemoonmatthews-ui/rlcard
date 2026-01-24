@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 class TransformerAgent(nn.Module):
-    def __init__(self, vocab_size, actions, max_seq_len, embedding_dimension=32, n_attention_head=4, layers=2, dim_feed_forward=256, device='cpu'):
+    def __init__(self, vocab_size, actions, max_seq_len, embedding_dimension=32, n_attention_head=4, layers=2, nplayers = 3,  dim_feed_forward=256, device='cpu'):
         super().__init__()
         self.use_raw = False  # RLCard convention
         self.embedding = nn.Embedding(vocab_size, embedding_dimension)
@@ -17,7 +17,7 @@ class TransformerAgent(nn.Module):
         )
         self.stack = nn.TransformerEncoder(encoder_layer=encoder_layer, num_layers=layers)
         self.policy = nn.Linear(in_features=embedding_dimension, out_features=actions) 
-        self.value = nn.Linear(in_features=embedding_dimension, out_features=1) 
+        self.value = nn.Linear(in_features=embedding_dimension, out_features= nplayers) 
         self.actions = actions
         self.device = device
 
@@ -33,7 +33,8 @@ class TransformerAgent(nn.Module):
         policy = self.policy(x)
         if legal_mask is not None:
             policy = policy.masked_fill(~legal_mask, float('-inf'))
-        value = self.value(x).squeeze(-1)
+        value = self.value(x)
+        value = torch.softmax(value, dim=-1) # we are storing a value for each player and we are making them sum to 1
         return policy, value
 
     def save(self, file_name):
@@ -77,7 +78,7 @@ class TransformerAgent(nn.Module):
             with torch.no_grad():
                 obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
                 _, value = self(obs)
-        return value.item()
+        return value.tolist()
     
     @contextmanager 
     def training_mode(self, mode=bool):

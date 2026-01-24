@@ -39,7 +39,7 @@ for _ in range(n_games):
             action = trajectories[position][i + 1]
             obs = state['obs'].tolist()
             legal_actions = list(state['legal_actions'].keys())
-            data = dict(obs=obs, legal_actions=legal_actions, action=action, payoff=payoffs[position].item(), position=position)
+            data = dict(obs=obs, legal_actions=legal_actions, action=action, payoff=payoffs[position].item(), payoffs=payoffs.tolist(), position=position)
             json.dump(data, sys.stdout)
             print()
 
