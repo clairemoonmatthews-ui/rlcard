@@ -98,7 +98,7 @@ class PlayerState:
         i = 0 
         # read hand
         while i < len(obs) and (trump_suit := Token.suit(obs[i])) is None:
-            token = obs[i]:
+            token = obs[i]
             if (card := Token.card(token)) is not None:
                 hand.append(card)
             i += 1
@@ -129,3 +129,5 @@ class PlayerState:
             winners=None,
         )
         return state
+    
+    

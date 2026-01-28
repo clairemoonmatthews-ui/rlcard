@@ -94,3 +94,9 @@ class SergeantMajorGame:
         """
         return len(self.round.tricks) == 16
     
+    @classmethod
+    def from_player_state (cls, player_state:PlayerState, allow_step_back: bool = False):
+        game = cls(allow_step_back)
+        game.round = SergeantMajorRound.from_player_state(player_state, game.np_random)
+        return game
+    

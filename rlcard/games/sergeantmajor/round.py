@@ -1,6 +1,7 @@
 import random
 from typing import List, Tuple, Optional
 import numpy as np
+from rlcard.agents.sergeantmajor_agent import Cards
 from rlcard.games.base import Card
 from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.types import PlayerId, PlayerState, Trick, Tricks
@@ -145,4 +146,57 @@ class SergeantMajorRound:
         """
         return PlayerState(current_player=player_id, hand=self.hands[player_id], current_trick=self.current_trick, tricks=self.tricks, tricks_won=self.won_trick_counts[player_id], legal_actions=self.get_legal_actions(player_id), trump_suit=self.trump_suit, winners=self.winners)
         
+    @classmethod
+    def from_player_state(cls, state:PlayerState, np_random: np.random.RandomState = None):
+        if np_random is None:
+            np_random = np.random.RandomState()
+        num_players = 3
+        round = cls(np_random, num_players)
+        round.won_tricks_counts = [state.count(i) for i in range(num_players)]
+        round.current_player_id = state.current_player
+        round.tricks = state.tricks
+        round.winners = state.winners
+        round.current_trick = state.current_trick
+        round.trump_suit = state.trump_suit
+        round.hands = [[] for i in range(num_players)]
+        round.hands[round.current_player_id] = state.hand
+        round._determinize_hands()
+        return round
+        
+    def _determinize_hands(self):
+
+        def played() -> Cards:
+            """Returns the set of cards already played"""
+            result = []
+            for trick in self.tricks:
+                for _, card in trick:
+                    result.append(card)
+            for _, card in self.current_trick:
+                result.append(card)
+            return result
+        
+        def missing_cards():
+            """Returns the set of cards that are neither played, nor in the player's hand."""
+            deck = set(Card.get_deck())
+            result = deck.difference(self.hands[self.current_player_id]).difference(played())
+            # print(f"{deck=}, {state.hand=}, {played()=}, {result=}")
+            return result
+        
+        def played_in_current_trick(player_id) -> bool:
+            result = False
+            for i,_ in self.current_trick:
+                if player_id == i:
+                    result = True
+            return result
+        
+        missing_cards = missing_cards()
+        length_current_hand = len(self.hands[self.current_player_id])
+        for i in range(self.num_players):
+            if i != self.current_player_id:
+                num_cards = length_current_hand - 1 if played_in_current_trick(i) else length_current_hand
+                cards = self.np_random.choice(missing_cards, num_cards, replace=False)
+                missing_cards = missing_cards.difference(cards)
+                self.hands[i] = cards
+        
+                
         
