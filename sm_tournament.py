@@ -11,19 +11,34 @@ from rlcard.utils.utils import tournament
 import logging
 
 # logging.basicConfig(level=logging.INFO)
+opponent = "heuristic"  # random, heuristic, model
+model = "models/model_20260127T020706Z.pt"
+
 
 def make_env() -> "Env":
     env = rlcard.make('sergeant-major')
     return env
 
+
 def set_agents(env: "Env", position=0):
-    #random_agent = RandomAgent(num_actions=env.num_actions)
-    h_agent = HeuristicAgent()
-    input_path = './models/model_20260107T042047Z_epoch24.pt'
+    input_path = model
     agent = TransformerAgent.load(input_path)
-    agents = [h_agent] * 3
-    agents[position] = agent
+
+    if opponent == "random":
+        o_agent = RandomAgent(num_actions=env.num_actions)
+    elif opponent == "heuristic":
+        o_agent = HeuristicAgent()
+    elif opponent == "model":
+        o_agent = agent
+    else:
+        assert False, f"Unknown opponent type: {opponent}"
+
+    input_path = model
+    agent = TransformerAgent.load(input_path)
+    agents = [agent if i ==
+              position else o_agent for i in range(env.num_players)]
     env.set_agents(agents)
+
 
 n_games = 1000
 wins = 0
@@ -32,10 +47,9 @@ for _ in range(n_games):
     env = make_env()
     set_agents(env, position)
     trajectories, payoffs = env.run(is_training=False)
-    win = payoffs[position] == max(payoffs) # TODO: worry about ties
+    win = payoffs[position] == max(payoffs)  # TODO: worry about ties
     # print(payoffs, position, win)
     if win:
         wins += 1
 win_rate = wins / n_games
-print(f"Win rate: {win_rate:%}")
-
+print(f"Model={model}, Opponent={opponent}, Win rate: {win_rate:%}")
