@@ -4,8 +4,9 @@ import numpy as np
 from rlcard.agents.sergeantmajor_agent import Cards
 from rlcard.games.base import Card
 from rlcard.games.sergeantmajor.card import SergeantMajorCard
-from rlcard.games.sergeantmajor.types import PlayerId, PlayerState, Trick, Tricks
+from rlcard.games.sergeantmajor.types import PlayerId, Trick, Tricks
 from rlcard.utils.seeding import np_random
+from rlcard.games.sergeantmajor.state import PlayerState
 
 
 class SergeantMajorRound:

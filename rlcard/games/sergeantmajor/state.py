@@ -7,8 +7,7 @@ import numpy as np
 from rlcard.agents.sergeantmajor_agent import Card, Suit
 from rlcard.games.sergeantmajor import token
 from rlcard.games.sergeantmajor.types import Actions, Hand, PlayerId, Trick, Tricks
-from rlcard.games.sergeantmajor.token import Token
-
+from rlcard.games.sergeantmajor.token import Token, max_state_length
 
 @dataclass
 class PlayerState:
@@ -59,16 +58,16 @@ class PlayerState:
             emit_trick(trick)
             emit(Token.WINNER, "winner")
             emit_player(winner)
-        if self.game.is_over():
+        if self.is_over():
             emit(Token.END, "end")
         else: 
             emit_trick(self.current_trick)
             emit_player(self.current_player)
-        assert len(obs) <= self.max_self_length
+        assert len(obs) <= max_state_length
         obs = np.array(obs)
         if padding:
-            obs = np.pad(obs, (0,token.max_self_length - len(obs)), constant_values = Token.END)
-        assert len(obs) <= token.max_self_length, len(obs)
+            obs = np.pad(obs, (0,max_state_length - len(obs)), constant_values = Token.END)
+        assert len(obs) <= max_state_length, len(obs)
         return obs, raw_obs 
         
     def is_over(self) -> bool:

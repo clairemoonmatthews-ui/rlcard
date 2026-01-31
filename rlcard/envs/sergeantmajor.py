@@ -7,7 +7,9 @@ from rlcard.games.base import Card
 from rlcard.games.sergeantmajor import SergeantMajorGame
 from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.judger import SergeantMajorJudger
-from rlcard.games.sergeantmajor.types import PlayerId, PlayerState, Trick
+from rlcard.games.sergeantmajor.types import PlayerId, Trick
+from rlcard.games.sergeantmajor.state import PlayerState
+from rlcard.games.sergeantmajor.token import max_state_length
 
 class SergeantMajorEnv(Env):
     """
@@ -26,7 +28,7 @@ class SergeantMajorEnv(Env):
         self.game = SergeantMajorGame()
         self.name = "sergeant-major"
         super().__init__(config)
-        self.state_shape = [[self.max_state_length]] # maximum length
+        self.state_shape = [[max_state_length]] # maximum length
         self.action_shape = [None]
         self.pad_state = config.get("sergeant-major.pad_state", False)
     
@@ -34,8 +36,8 @@ class SergeantMajorEnv(Env):
         obs, raw_obs = state.to_tokens(self.pad_state)
         legal_actions = {}
         raw_legal_actions = []
-        for action in self.legal_actions:
-            legal_actions[(action.get_index())] = None
+        for action in self._get_legal_actions():
+            legal_actions[(action)] = None
             raw_legal_actions.append(str(action))
         legal_actions = OrderedDict(legal_actions)
 

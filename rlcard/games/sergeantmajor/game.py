@@ -1,7 +1,8 @@
 from typing import Any, Tuple
 import numpy as np
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
-from rlcard.games.sergeantmajor.types import PlayerId, PlayerState
+from rlcard.games.sergeantmajor.types import PlayerId
+from rlcard.games.sergeantmajor.state import PlayerState
 
 
 class SergeantMajorGame:
@@ -99,4 +100,5 @@ class SergeantMajorGame:
         game = cls(allow_step_back)
         game.round = SergeantMajorRound.from_player_state(player_state, game.np_random)
         return game
+    
     

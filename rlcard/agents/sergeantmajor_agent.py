@@ -6,13 +6,12 @@ import numpy as np
 
 from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.types import Hand, PlayerId, Trick, Tricks
-from rlcard.envs.sergeantmajor import SergeantMajorEnv
+from rlcard.games.sergeantmajor.token import Token
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-Token = SergeantMajorEnv.Token
 Suit = str
 Cards = List[SergeantMajorCard]
 Card = SergeantMajorCard
