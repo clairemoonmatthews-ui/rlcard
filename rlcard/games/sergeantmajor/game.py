@@ -1,4 +1,5 @@
-from typing import Any, Tuple
+from collections import OrderedDict
+from typing import Any, Dict, Tuple
 import numpy as np
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
 from rlcard.games.sergeantmajor.types import PlayerId
@@ -59,6 +60,31 @@ class SergeantMajorGame:
         """
         return self.round.get_state(player_id)
     
+    def get_rlcard_state(self) -> Dict:
+        """
+        Get the state observation for the current player.
+            
+        Returns:
+            Dictionary containing the player's observation
+        """
+        player_state = self.get_state(self.get_player_id())
+        obs, raw_obs = player_state.to_tokens(False)
+        legal_actions = {}
+        raw_legal_actions = []
+        legal_actions_cards = self.round.get_legal_actions(self.get_player_id())
+        legal_actions_int = [c.get_index() for c in legal_actions_cards]
+        for action in legal_actions_int:
+            legal_actions[(action)] = None
+            raw_legal_actions.append(str(action))
+        legal_actions = OrderedDict(legal_actions)
+
+        extracted_self = {
+            'obs': obs, 
+            'raw_obs': raw_obs,
+            'legal_actions': legal_actions, 'raw_legal_actions': raw_legal_actions}
+        return extracted_self
+    
+    
     def get_num_players(self) -> int:
         """
         Get the number of players in the game.
@@ -100,5 +126,12 @@ class SergeantMajorGame:
         game = cls(allow_step_back)
         game.round = SergeantMajorRound.from_player_state(player_state, game.np_random)
         return game
+    
+    @classmethod
+    def from_rlcard_state (cls, state: Dict, allow_step_back: bool = False):
+        obs = state["obs"]
+        player_state = PlayerState.from_tokens(obs)
+        return cls.from_player_state(player_state, allow_step_back)
+
     
     
