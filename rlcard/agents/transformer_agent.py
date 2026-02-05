@@ -20,6 +20,7 @@ class TransformerAgent(nn.Module):
         self.value = nn.Linear(in_features=embedding_dimension, out_features= nplayers) 
         self.actions = actions
         self.device = device
+        self.nplayers = nplayers
 
     def forward(self, obs, legal_mask=None):
         assert str(obs.device) == self.device, f"obs={obs.device}, self={self.device}"
