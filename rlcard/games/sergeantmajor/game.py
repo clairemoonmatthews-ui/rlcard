@@ -131,7 +131,7 @@ class SergeantMajorGame:
         return game
     
     @classmethod
-    def from_rlcard_state (cls, state: Dict, allow_step_back: bool = False):
+    def from_rlcard_state (cls, state: Dict, allow_step_back: bool = False) -> "SergeantMajorGame":
         obs = state["obs"]
         player_state = PlayerState.from_tokens(obs)
         return cls.from_player_state(player_state, allow_step_back)
