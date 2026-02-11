@@ -4,7 +4,7 @@ from typing import Dict, Optional, Type
 import numpy as np
 
 from rlcard.agents.transformer_agent import TransformerAgent
-
+RLCardState = Dict
 
 class Node:
     """Simple class to represent nodes in an MCTS tree."""
@@ -26,7 +26,7 @@ class MCTSAgent:
         self.num_simulations = num_simulations
         self.c_puct = c_puct
 
-    def step(self, state:Dict) -> int:
+    def step(self, state:RLCardState) -> int:
         """
         Called during gameplay to select an action.
         
@@ -36,14 +36,12 @@ class MCTSAgent:
         Returns:
             action: Integer in range [0, 51] representing card to play
         """
-        legal_actions = state['legal_actions']
-        obs = state['obs']  # The token sequence
         root = Node(num_actions=self.agent.actions, num_players=self.agent.nplayers)
         for i in range(self.num_simulations):
-            self.simulate(root, obs)
+            self.simulate(root, state)
         return root.best_action()
 
-    def simulate(root:Node, obs:np.array):
+    def simulate(root:Node, state:RLCardState):
         """
         Run one step of simulation of MCTS.
 
@@ -53,7 +51,7 @@ class MCTSAgent:
         """
         pass
 
-        # We are implementing Alpha Zero style MCTS with imperfect information.
+        # We are implementing AlphaZero-style MCTS with imperfect information.
         # We need to do the following five steps:
         # 1. Determinize: Create a realized game state from the observations.
         # 2. Selection: Starting at the root, use PUCT to select actions until
@@ -65,19 +63,16 @@ class MCTSAgent:
         # 5. Backpropagation: Adjust all the nodes back to the root with visit count 
         #    and updated Q-value.
 
-        # Hmm.  Might want to change this method to take an rlcard state dict 
-        # instead of obs.
-
         # Some useful methods:
-        # self.agent.get_policy() - not yet implemented
+        # self.agent.get_policy() 
         # self.agent.get_value()
         # self.game_class.from_rlcard_state() 
         # game.is_over()
         # game.step()
         # game.get_rlcard_state() - returns both obs and legal_actions
-        # game.get_payoffs() - not yet implemented, but see SergeantMajorEnv; think about scaling 
+        # game.get_payoffs() - but see SergeantMajorEnv; think about scaling 
         # game.get_player_id()
 
         # PUCT = values_for_current_player + c_puct * priors * sqrt(total_visits + 1) / (1 + visits)
-        # Note that values, priorts and visits should be indexed by legal actions.
+        # Note that values, priors, and visits should be indexed by legal actions.
 

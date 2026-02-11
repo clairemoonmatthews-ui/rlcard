@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from typing import Dict, Tuple
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -65,7 +66,7 @@ class TransformerAgent(nn.Module):
                 action = logits.argmax(dim = 1).item()
         return action
     
-    def get_value(self, state:Dict) -> float:
+    def get_value(self, state:Dict) -> np.array:
         """
         Called during gameplay to get the value.
         
@@ -79,7 +80,14 @@ class TransformerAgent(nn.Module):
             with torch.no_grad():
                 obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
                 _, value = self(obs)
-        return value.tolist()
+        return value.numpy()
+    
+    def get_policy(self, state:Dict) -> np.array:
+        with self.training_mode(False):
+            with torch.no_grad():
+                obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
+                policy, _ = self(obs)
+        return policy.numpy()
     
     @contextmanager 
     def training_mode(self, mode=bool):

@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Any, Dict, Tuple
 import numpy as np
+from rlcard.games.sergeantmajor.judger import SergeantMajorJudger
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
 from rlcard.games.sergeantmajor.types import PlayerId
 from rlcard.games.sergeantmajor.state import PlayerState
@@ -84,7 +85,9 @@ class SergeantMajorGame:
             'legal_actions': legal_actions, 'raw_legal_actions': raw_legal_actions}
         return extracted_self
     
-    
+    def get_payoffs(self) -> np.array:
+        return np.array(SergeantMajorJudger.judge_game(self))/16
+
     def get_num_players(self) -> int:
         """
         Get the number of players in the game.
