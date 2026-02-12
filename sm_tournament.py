@@ -11,6 +11,8 @@ from rlcard.games.sergeantmajor.game import SergeantMajorGame
 from rlcard.utils.utils import tournament
 
 import logging
+from tqdm import tqdm 
+
 logging.basicConfig(level=logging.WARNING)
 
 # logging.basicConfig(level=logging.INFO)
@@ -58,7 +60,7 @@ def set_agents(env: "Env", position=0):
 
 n_games = 1000
 wins = 0
-for _ in range(n_games):
+for _ in tqdm(range(n_games), desc=f"{competitor} vs {opponent} ({n_games})"):
     position = np.random.randint(3)
     env = make_env()
     set_agents(env, position)
@@ -68,4 +70,4 @@ for _ in range(n_games):
     if win:
         wins += 1
 win_rate = wins / n_games
-print(f"Model={model}, Opponent={opponent}, Win rate: {win_rate:%}")
+print(f"Competitor={competitor}, Model={model}, Opponent={opponent}, Win rate: {win_rate:%}")

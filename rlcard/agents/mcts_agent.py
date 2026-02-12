@@ -7,7 +7,7 @@ import numpy as np
 from rlcard.agents.transformer_agent import TransformerAgent
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 RLCardState = Dict # contains "obs" and "legal_actions"
 
