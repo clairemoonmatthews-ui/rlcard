@@ -80,14 +80,14 @@ class TransformerAgent(nn.Module):
             with torch.no_grad():
                 obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
                 _, value = self(obs)
-        return value.numpy()
+        return value.squeeze(0).numpy()
     
     def get_policy(self, state:Dict) -> np.array:
         with self.training_mode(False):
             with torch.no_grad():
                 obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
                 policy, _ = self(obs)
-        return policy.numpy()
+        return policy.squeeze(0).numpy()
     
     @contextmanager 
     def training_mode(self, mode=bool):

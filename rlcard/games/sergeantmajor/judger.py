@@ -1,5 +1,4 @@
 from typing import List
-from rlcard.games.sergeantmajor.game import SergeantMajorGame
 
 
 class SergeantMajorJudger:
@@ -8,7 +7,7 @@ class SergeantMajorJudger:
     """
     
     @staticmethod
-    def judge_game(game: SergeantMajorGame) -> List[int]:
+    def judge_game(game: "SergeantMajorGame") -> List[int]:
         """
         Compute the final payoffs for all players.
         

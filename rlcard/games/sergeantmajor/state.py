@@ -6,6 +6,7 @@ import numpy as np
 
 from rlcard.agents.sergeantmajor_agent import Card, Suit
 from rlcard.games.sergeantmajor import token
+from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.types import Actions, Hand, PlayerId, Trick, Tricks
 from rlcard.games.sergeantmajor.token import Token, max_state_length
 
@@ -53,7 +54,7 @@ class PlayerState:
         emit_player(self.current_player)
         for card in self.hand:
             emit_card(card)
-        emit(Token.FIRST_SUIT + self.trump_suit, f"trump_{Card.valid_suit[self.trump_suit]}")
+        emit(Token.FIRST_SUIT + SergeantMajorCard.suit_index(self.trump_suit), f"trump_{self.trump_suit}")
         for trick, winner in zip(self.tricks, self.winners):
             emit_trick(trick)
             emit(Token.WINNER, "winner")
@@ -116,6 +117,7 @@ class PlayerState:
                 assert player is not None, f"no player, trying to play {card=}, {token=}"
                 current_trick.append((player, card))
             i += 1
+
         state = cls(
             hand=hand, 
             trump_suit=trump_suit, 
@@ -123,7 +125,7 @@ class PlayerState:
             tricks=trick_history, 
             current_player=player,
             # derived fields not required for minimal PlayerState
-            tricks_win=None,
+            tricks_won=None,
             legal_actions=None,
             winners=None,
         )

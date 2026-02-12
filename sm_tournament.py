@@ -2,17 +2,44 @@
 import numpy as np
 import rlcard
 from rlcard.agents import random_agent
+from rlcard.agents.mcts_agent import MCTSAgent
 from rlcard.agents.random_agent import RandomAgent
 from rlcard.agents.sergeantmajor_agent import HeuristicAgent
 from rlcard.agents.transformer_agent import TransformerAgent
 from rlcard.envs.env import Env
+from rlcard.games.sergeantmajor.game import SergeantMajorGame
 from rlcard.utils.utils import tournament
 
 import logging
+logging.basicConfig(level=logging.WARNING)
 
 # logging.basicConfig(level=logging.INFO)
+competitor = "mcts"
 opponent = "heuristic"  # random, heuristic, model
 model = "models/model_20260127T020706Z.pt"
+game_class = SergeantMajorGame
+
+def make_competitor():
+    match competitor:
+        case "transformer":
+            return TransformerAgent.load(model)
+        case "mcts":
+            transformer_agent = TransformerAgent.load(model)
+            return MCTSAgent(agent=transformer_agent, game_class=game_class)
+        case _:
+            assert False, f"Unknown competitor {competitor}"
+
+def make_opponent():
+    match opponent:
+        case "random":
+            return RandomAgent(num_actions=env.num_actions)
+        case "heuristic":
+            return HeuristicAgent()
+        case "transformer":
+            return TransformerAgent.load(model)
+        case _:
+            assert False, f"Unknown opponent type: {opponent}"
+
 
 
 def make_env() -> "Env":
@@ -21,22 +48,11 @@ def make_env() -> "Env":
 
 
 def set_agents(env: "Env", position=0):
-    input_path = model
-    agent = TransformerAgent.load(input_path)
+    agent = make_competitor()
+    o_agent = make_opponent()
 
-    if opponent == "random":
-        o_agent = RandomAgent(num_actions=env.num_actions)
-    elif opponent == "heuristic":
-        o_agent = HeuristicAgent()
-    elif opponent == "model":
-        o_agent = agent
-    else:
-        assert False, f"Unknown opponent type: {opponent}"
-
-    input_path = model
-    agent = TransformerAgent.load(input_path)
-    agents = [agent if i ==
-              position else o_agent for i in range(env.num_players)]
+    agents = [agent if i == position else o_agent 
+              for i in range(env.num_players)]
     env.set_agents(agents)
 
 

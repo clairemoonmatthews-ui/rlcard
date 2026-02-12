@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from typing import Any, Dict, Tuple
 import numpy as np
+from rlcard.games.base import Card
+from rlcard.games.sergeantmajor.card import SergeantMajorCard
 from rlcard.games.sergeantmajor.judger import SergeantMajorJudger
 from rlcard.games.sergeantmajor.round import SergeantMajorRound
 from rlcard.games.sergeantmajor.types import PlayerId
@@ -44,6 +46,8 @@ class SergeantMajorGame:
         Returns:
             Tuple of (state observation for next player, next player id)
         """
+        if not isinstance (action, Card):
+            action = SergeantMajorCard.from_index(action)
         self.round.proceed_round(action)
         player_id = self.round.current_player_id
         player_state = self.round.get_state(player_id)

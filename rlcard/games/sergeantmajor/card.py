@@ -30,6 +30,10 @@ class SergeantMajorCard(Card):
                 return i
         raise IndexError()
     
+    @classmethod
+    def suit_index(cls, suit:str) -> int:
+        return Card.valid_suit.index(suit)
+
     @property
     def rank_index(self) -> int:
         """Returns the index associated with a cards rank, ace is high so will be 13

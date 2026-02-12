@@ -47,7 +47,8 @@ class SergeantMajorRound:
         # four cards left in the deck that we are ignoring for now
 
         # in simplified sergeant major the trump suit is selected at random
-        self.trump_suit = self.np_random.choice(range(4))
+        self.trump_suit = Card.valid_suit[self.np_random.choice(range(4))]
+
 
     def proceed_round(self, action: Card) -> None:
         """
@@ -57,6 +58,7 @@ class SergeantMajorRound:
         Args:
             action: The card being played by the current player
         """
+        assert action in self.hands[self.current_player_id], f"action = {action} hand = {self.hands[self.current_player_id]} "
         self.current_trick.append((self.current_player_id, action))
         self.hands[self.current_player_id].remove(action)
         if self._is_current_trick_complete():
@@ -146,19 +148,19 @@ class SergeantMajorRound:
                 - current_player: ID of player whose turn it is
         """
         return PlayerState(current_player=player_id, hand=self.hands[player_id], current_trick=self.current_trick, tricks=self.tricks, tricks_won=self.won_trick_counts[player_id], legal_actions=self.get_legal_actions(player_id), trump_suit=self.trump_suit, winners=self.winners)
-        
+
     @classmethod
     def from_player_state(cls, state:PlayerState, np_random: np.random.RandomState = None):
         if np_random is None:
             np_random = np.random.RandomState()
         num_players = 3
         round = cls(np_random, num_players)
-        round.won_tricks_counts = [state.count(i) for i in range(num_players)]
         round.current_player_id = state.current_player
         round.tricks = state.tricks
-        round.winners = state.winners
-        round.current_trick = state.current_trick
         round.trump_suit = state.trump_suit
+        round.winners = [round._determine_trick_winner(trick) for trick in round.tricks]
+        round.won_tricks_counts = [round.winners.count(i) for i in range(num_players)]
+        round.current_trick = state.current_trick
         round.hands = [[] for i in range(num_players)]
         round.hands[round.current_player_id] = state.hand
         round._determinize_hands()
@@ -178,7 +180,7 @@ class SergeantMajorRound:
         
         def missing_cards():
             """Returns the set of cards that are neither played, nor in the player's hand."""
-            deck = set(Card.get_deck())
+            deck = set(SergeantMajorCard.get_deck())
             result = deck.difference(self.hands[self.current_player_id]).difference(played())
             # print(f"{deck=}, {state.hand=}, {played()=}, {result=}")
             return result
@@ -195,7 +197,7 @@ class SergeantMajorRound:
         for i in range(self.num_players):
             if i != self.current_player_id:
                 num_cards = length_current_hand - 1 if played_in_current_trick(i) else length_current_hand
-                cards = self.np_random.choice(missing_cards, num_cards, replace=False)
+                cards = list(self.np_random.choice(list(missing_cards), num_cards, replace=False))
                 missing_cards = missing_cards.difference(cards)
                 self.hands[i] = cards
         
