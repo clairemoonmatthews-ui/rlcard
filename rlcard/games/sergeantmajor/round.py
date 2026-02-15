@@ -159,7 +159,7 @@ class SergeantMajorRound:
         round.tricks = state.tricks
         round.trump_suit = state.trump_suit
         round.winners = [round._determine_trick_winner(trick) for trick in round.tricks]
-        round.won_tricks_counts = [round.winners.count(i) for i in range(num_players)]
+        round.won_trick_counts = [round.winners.count(i) for i in range(num_players)]
         round.current_trick = state.current_trick
         round.hands = [[] for i in range(num_players)]
         round.hands[round.current_player_id] = state.hand

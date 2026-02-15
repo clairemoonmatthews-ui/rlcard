@@ -45,10 +45,16 @@ class MCTSAgent:
             action: Integer in range [0, 51] representing card to play
         """
         logger.info(f"MCTS: Taking a step")
+        legal_actions = list(state["legal_actions"].keys())
+        assert len(legal_actions) > 0, "no legal actions"
+        if len(legal_actions) == 1:
+            return legal_actions[0]
         root = Node(num_actions=self.agent.actions, num_players=self.agent.nplayers)
         for i in range(self.num_simulations):
             self.simulate(root, state)
-        return root.best_action()
+        action = root.best_action()
+        assert action in legal_actions, "action is not legal"
+        return action
     
     def eval_step(self, state:Dict) -> Tuple[int, Dict]:
         """
@@ -73,9 +79,15 @@ class MCTSAgent:
         visits = node.visits[legal_actions]
         total_visits = np.sum(visits)
         policy = self.agent.get_policy(state) 
-        priors= policy[legal_actions]
-        priors = priors/np.sum(priors)
+        assert np.all(policy >= 0), f"policy less than 0, {policy}"
+        assert np.all(policy <= 1), f"policy greater than 1, {policy}" 
+        assert np.isclose(np.sum(policy),1), f"sum of policy is not 1, sum = {np.sum(policy)}, policy = {policy}"
+        assert len(policy) == self.agent.actions
+        illegal_actions = [i for i in range(self.agent.actions) if i not in legal_actions]
+        assert np.all(policy[illegal_actions] == 0), "illegal policy probability is not zero"
+        priors = policy[legal_actions]
         puct = values + self.c_puct * priors * np.sqrt(total_visits + 1) / (1 + visits)
+        assert np.all(np.isfinite(puct)), "puct is not finite"
         i = np.argmax(puct)
         return legal_actions[i]
         
@@ -90,32 +102,40 @@ class MCTSAgent:
         # 1. Determinize: Create a realized game state from the observations.
         game = self.game_class.from_rlcard_state(state)
         logger.debug(f"Determinized new game {game}")
+
         # 2. Selection: Starting at the root, use PUCT to select actions until
         #   either you reach an unexpanded node, or you reach a terminal state.
         node = root
         while True:
             if game.is_over():
-                break
+                break # go to step 4a
             action = self.pick_explore_action(node, game)
+            game.step(action)
             if action not in node.children:
                 # 3. Expansion: Unless you are at a terminal state, create one new node.
                 new_node = Node(parent=node, action=action, num_actions=self.agent.actions, num_players=self.agent.nplayers)
                 node.children[action] = new_node
                 node = new_node
-                game.step(action)
-                break
+                break # go to step 4b
+
             node = node.children[action]
-            game.step(action)
+
         # 4. Evaluate: At terminal states, find the actual payoffs; 
         #    otherwise use the transformer agent to estimate value.
         if game.is_over():
             payoffs = game.get_payoffs()
         else:
             payoffs = self.agent.get_value(game.get_rlcard_state())
+        assert np.isclose(np.sum(payoffs), 1), f"payoffs do not sum to 1, sum = {np.sum(payoffs)}, {game.is_over()}"
+        assert np.all(payoffs >= 0), f"payoffs less than 0, {payoffs}"
+        assert np.all(payoffs <= 1), f"payoffs greater than 1, {payoffs}" 
         # 5. Backpropagation: Adjust all the nodes back to the root with visit count 
         #    and updated Q-value.
         while node != root:
             node.parent.values[node.action, :] = (node.parent.visits[node.action] * node.parent.values[node.action, :] + payoffs) / (node.parent.visits[node.action] + 1)
+            assert np.isclose(np.sum(node.parent.values[node.action, :]), 1), f"q-values do not sum to 1, sum = {np.sum(node.parent.values[node.action, :])}"
+            assert np.all(node.parent.values[node.action, :] >= 0), f"q-values less than 0, {node.parent.values[node.action, :]}"
+            assert np.all(node.parent.values[node.action, :] <= 1), f"q-values greater than 1, {node.parent.values[node.action, :]}" 
             node.parent.visits[node.action] += 1
             node = node.parent
             
