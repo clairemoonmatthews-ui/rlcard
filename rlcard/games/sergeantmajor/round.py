@@ -192,14 +192,51 @@ class SergeantMajorRound:
                     result = True
             return result
         
-        missing_cards = missing_cards()
-        length_current_hand = len(self.hands[self.current_player_id])
-        for i in range(self.num_players):
-            if i != self.current_player_id:
-                num_cards = length_current_hand - 1 if played_in_current_trick(i) else length_current_hand
-                cards = list(self.np_random.choice(list(missing_cards), num_cards, replace=False))
-                missing_cards = missing_cards.difference(cards)
-                self.hands[i] = cards
+
         
+        def cards_needed():
+            num_needed = [16 - len(self.hands[i]) for i in range(self.num_players)]
+            for trick in self.tricks + [self.current_trick]:
+                for p, _ in trick:
+                    num_needed[p] -= 1
+            return num_needed
+        
+        def known_voids():
+            result = [set() for _ in range(self.num_players)]
+            for trick in self.tricks + [self.current_trick]:
+                if len(trick) != 0:
+                    suit_led = trick[0][1].suit
+                    for p, c in trick[1:]:
+                        if c.suit != suit_led:
+                            result[p].add(suit_led)
+            return result
+        
+        def potential_cards():
+            missing = missing_cards()
+            return [[c for c in missing if c.suit not in voids[i]] for i in range(self.num_players)]
+        
+        # Generate legal determinization
+        # 1. Calculate how many cards each player needs
+        # 2. Determine each player's known voids from history
+        # 3. Determine potential cards for each player
+        # 4. For player with fewer "spare" cards:
+        # 4a. Select cards from potential cards
+        # 4b. Add to this player's hand
+        # 4c. Remove from other player's potential cards
+        # 5. For remaining player, select and add cards
+
+        
+        c_needed = cards_needed()
+        voids = known_voids()
+        p_cards = potential_cards()
+        players = sorted(range(self.num_players), key=lambda p: len(p_cards[p]) - c_needed[p])
+        cards_dealt = set()
+        for p in players:
+            cards = set(p_cards[p]) - cards_dealt
+            chosen = self.np_random.choice(list(p_cards[p]), c_needed[p], replace=False)
+            self.hands[p].extend(chosen)
+            cards_dealt.update(chosen)
+
+
                 
         
