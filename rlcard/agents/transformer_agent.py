@@ -93,12 +93,17 @@ class TransformerAgent(nn.Module):
                 _, value = self(obs)
         return value.squeeze(0).numpy()
 
-    def get_policy(self, state: Dict) -> np.array:
+    def get_policy(self, state:Dict) -> np.array:
+        legal_actions = state['legal_actions']
+        legal_actions = torch.tensor(list(legal_actions.keys()), dtype=torch.long, device=self.device)
         with self.training_mode(False):
             with torch.no_grad():
-                obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(
-                    0).to(self.device)
-                policy, _ = self(obs)
+                obs = torch.tensor(state['obs'], dtype=torch.long).unsqueeze(0).to(self.device)
+                logits, _ = self(obs)
+                mask = torch.ones(self.actions, dtype=torch.bool, device=self.device)
+                mask[legal_actions] = False
+                logits = logits.masked_fill(mask, float('-inf'))
+                policy = torch.softmax(logits, dim =-1)
         return policy.squeeze(0).numpy()
 
     @contextmanager
