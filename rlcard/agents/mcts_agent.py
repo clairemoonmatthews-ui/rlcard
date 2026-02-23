@@ -1,6 +1,6 @@
 from math import sqrt
 import time
-from typing import Dict, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 import logging
 
 import numpy as np
@@ -22,7 +22,7 @@ class Node:
         self.parent = parent
         self.children = {}
         self.visits = np.zeros(num_actions, dtype=np.int32)
-        self.values = np.zeros([num_actions, num_players], dtype=np.float32)
+        self.values = np.full([num_actions, num_players], 1.0/num_players, dtype=np.float32)
         self.action = action
 
     def best_action(self) -> int:
@@ -33,13 +33,14 @@ class Node:
 class MCTSAgent:
     """Agent using MCTS and another agent"""
 
-    def __init__(self, agent: TransformerAgent, game_class: Type, num_simulations: int = 100, c_puct=sqrt(2), cache_size=10000):
+    def __init__(self, agent: TransformerAgent, game_class: Type, num_simulations: int = 100, c_puct=sqrt(2), cache_size=10000, n_dets=50):
         self.agent = agent
         self.game_class = game_class
         self.num_simulations = num_simulations
         self.c_puct = c_puct
         self.use_raw = False
         self._policy_cache = LRUCache(maxsize=cache_size)
+        self.n_dets = n_dets
 
     def step(self, state: RLCardState) -> int:
         """
@@ -58,9 +59,16 @@ class MCTSAgent:
             return legal_actions[0]
         root = Node(num_actions=self.agent.actions,
                     num_players=self.agent.nplayers)
+        
+        dets = []
+        for i in range(self.n_dets):
+            det = self.game_class.from_rlcard_state(state)
+            if det not in dets:
+                dets.append(det)
+
         for i in range(self.num_simulations):
             # start_time = time.time()
-            self.simulate(root, state)
+            self.simulate(root, dets)
             # logger.info(
             #     f"{self} MCTS: Simulation {i+1}/{self.num_simulations} took {time.time() - start_time:.2f}s")
         action = root.best_action()
@@ -116,16 +124,16 @@ class MCTSAgent:
         assert action in legal_actions, f"Selected action {action} not in legal actions {legal_actions}"
         return action
 
-    def simulate(self, root: Node, state: RLCardState):
+    def simulate(self, root: Node, dets: List):
         """
         Run one step of simulation of MCTS.
 
         Arguments:
             root: Node we're starting with
-            obs: Observations from game        
+            dets: possible determinizations      
         """
-        # 1. Determinize: Create a realized game state from the observations.
-        game = self.game_class.from_rlcard_state(state)
+        # 1. Determinize: Sampling a determinization from a list of possible determinizations.
+        game = np.random.choice(dets)
 
         # 2. Selection: Starting at the root, use PUCT to select actions until
         #   either you reach an unexpanded node, or you reach a terminal state.

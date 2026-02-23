@@ -99,9 +99,10 @@ def run_single_game(seed):
 
     # print(f"[{seed}] Game finished (elapsed: {time.time()-start:.1f}s)")
     # Check if competitor won
-    win = payoffs[position] == max(payoffs)
+    max_payoff = max(payoffs)
+    win = int(payoffs[position] == max_payoff)/sum(p == max_payoff for p in payoffs)
     # print(f"[{seed}] Result: {'Win' if win else 'Loss'} - payoffs={payoffs}")
-    return dict(win=int(win), payoffs=payoffs, position=position, seed=seed, duration=time.time()-start)
+    return dict(win=win, payoffs=payoffs, position=position, seed=seed, duration=time.time()-start)
 
 
 if __name__ == '__main__':
