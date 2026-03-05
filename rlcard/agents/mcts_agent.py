@@ -27,7 +27,8 @@ class Node:
 
     def best_action(self) -> int:
         """Selects the best action using visit counts."""
-        return np.argmax(self.visits)
+        best = np.argmax(self.visits)
+        return best
 
 
 class MCTSAgent:
@@ -52,6 +53,20 @@ class MCTSAgent:
         Returns:
             action: Integer in range [0, 51] representing card to play
         """
+        action, _ = self.eval_step(state)
+        return action
+
+    def eval_step(self, state: Dict) -> Tuple[int, Dict]:
+        """
+        Called during evaluation - returns action and info dict.
+
+        Args:
+            state: Same as step()
+
+        Returns:
+            action: Selected action
+            info: Dict with any debugging/analysis info (can be empty)
+        """
         logger.info(f"{self} MCTS: Taking a step")
         legal_actions = list(state['legal_actions'].keys())
         assert len(legal_actions) > 0, "No legal actions available"
@@ -71,25 +86,14 @@ class MCTSAgent:
             self.simulate(root, dets)
             # logger.info(
             #     f"{self} MCTS: Simulation {i+1}/{self.num_simulations} took {time.time() - start_time:.2f}s")
+            
+
         action = root.best_action()
         assert action in legal_actions, f"Selected action {action} not in legal actions {legal_actions}"
         logger.info(
             f"{self} MCTS: Selected action {action} after {self.num_simulations} simulations (visits: {root.visits[action]})")
-        return action
-
-    def eval_step(self, state: Dict) -> Tuple[int, Dict]:
-        """
-        Called during evaluation - returns action and info dict.
-
-        Args:
-            state: Same as step()
-
-        Returns:
-            action: Selected action
-            info: Dict with any debugging/analysis info (can be empty)
-        """
-        action = self.step(state)
-        return action, {}
+        extra = {"visits": root.visits}
+        return action, extra
 
     @cachedmethod(cache=lambda self: self._policy_cache, key=lambda self, state: hashkey(tuple(state['obs'])))
     def _get_policy(self, state: RLCardState) -> np.ndarray:
@@ -133,7 +137,7 @@ class MCTSAgent:
             dets: possible determinizations      
         """
         # 1. Determinize: Sampling a determinization from a list of possible determinizations.
-        game = np.random.choice(dets)
+        game = np.random.choice(dets).clone()
 
         # 2. Selection: Starting at the root, use PUCT to select actions until
         #   either you reach an unexpanded node, or you reach a terminal state.
