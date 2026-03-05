@@ -36,6 +36,18 @@ class SergeantMajorGame:
         self.round = SergeantMajorRound(self.np_random, self.num_players)
         return (self.get_state(self.get_player_id()), self.get_player_id())
     
+    def clone(self) -> "SergeantMajorGame":
+        game = type(self)(self.allow_step_back)
+        game.np_random = None
+        game.num_players = self.num_players
+        game.round = self.round.clone()
+        return game
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.round == other.round
+
     def step(self, action: Any) -> Tuple[PlayerState, int]:
         """
         Execute one action in the game.

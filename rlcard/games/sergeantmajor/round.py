@@ -1,3 +1,4 @@
+from copy import deepcopy
 import random
 from typing import List, Tuple, Optional
 import numpy as np
@@ -31,6 +32,28 @@ class SergeantMajorRound:
         self.current_trick: Trick = []
         self.num_players = num_players
         self._deal_cards() # Adds self.hands, self.trump_suit
+
+    def clone(self) -> "SergeantMajorRound":
+        round = type(self)(None, self.num_players)
+        round.current_player_id = self.current_player_id 
+        round.won_trick_counts = self.won_trick_counts.copy()
+        round.tricks = deepcopy(self.tricks)
+        round.winners = self.winners.copy()
+        round.current_trick = self.current_trick.copy()
+        round.hands = deepcopy(self.hands)
+        round.trump_suit = self.trump_suit
+        return round
+        
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return (
+            self.hands == other.hands
+            and self.tricks == other.tricks
+            and self.current_trick == other.current_trick
+            and self.trump_suit == other.trump_suit
+            and self.current_player_id == other.current_player_id
+        )
     
     def _deal_cards(self) -> None:
         """
@@ -39,15 +62,21 @@ class SergeantMajorRound:
         """
         initial_hand_size = 16
         deck = SergeantMajorCard.get_deck() 
-        self.np_random.shuffle(deck)
-        self.hands = []
-        for p in range(self.num_players):
-            self.hands.append(deck[p * initial_hand_size:(1+p) * initial_hand_size]) 
+        if self.np_random is not None:
+            self.np_random.shuffle(deck)
+            self.hands = []
+            for p in range(self.num_players):
+                self.hands.append(deck[p * initial_hand_size:(1+p) * initial_hand_size]) 
             
-        # four cards left in the deck that we are ignoring for now
+            # four cards left in the deck that we are ignoring for now
 
-        # in simplified sergeant major the trump suit is selected at random
-        self.trump_suit = Card.valid_suit[self.np_random.choice(range(4))]
+            # in simplified sergeant major the trump suit is selected at random
+            self.trump_suit = Card.valid_suit[self.np_random.choice(range(4))]
+            self.sort_hand()
+
+    def sort_hand(self) -> None:
+        for hand in self.hands:
+            hand.sort()
 
 
     def proceed_round(self, action: Card) -> None:
@@ -164,6 +193,7 @@ class SergeantMajorRound:
         round.hands = [[] for i in range(num_players)]
         round.hands[round.current_player_id] = state.hand
         round._determinize_hands()
+        round.sort_hand()
         return round
         
     def _determinize_hands(self):

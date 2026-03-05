@@ -2,6 +2,13 @@ from rlcard.games.base import Card
 from typing import List
 
 class SergeantMajorCard(Card):
+
+    def __init__(self, suit, rank):
+        super().__init__(suit, rank)
+        suit_index = Card.valid_suit.index(suit)
+        rank_index = Card.valid_rank.index(rank)
+        self.index = suit_index*13 + rank_index
+
     
     @classmethod
     def get_deck(cls) -> List["SergeantMajorCard"]:
@@ -29,7 +36,11 @@ class SergeantMajorCard(Card):
             if self == card:
                 return i
         raise IndexError()
-    
+
+    def __lt__(self, other):
+        return self.index < other.index
+
+
     @classmethod
     def suit_index(cls, suit:str) -> int:
         return Card.valid_suit.index(suit)
